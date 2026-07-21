@@ -49,3 +49,14 @@ button:disabled { opacity: 0.65; cursor: wait; }
   .section-heading { display: block; }
   .badge { display: inline-block; margin-top: 10px; }
 }
+.validation-box { display: grid; gap: 4px; margin-top: 18px; padding: 14px 16px; border-radius: 10px; background: #f2f4f8; }
+.validation-box.allowed { background: #eaf8ef; color: #176333; }
+.validation-box.forbidden { background: #fff1f1; color: #8f2424; }
+.muted { color: #65738a; }
+.resonance-columns { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 18px; }
+.resonance-columns article { background: #f6f8fb; border-radius: 12px; padding: 16px; max-height: 390px; overflow: auto; }
+.resonance-columns h3 { margin-top: 0; }
+.resonance-columns ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+.resonance-columns li { display: grid; gap: 2px; padding-bottom: 8px; border-bottom: 1px solid #dde3ec; }
+.resonance-columns li span { font-size: .82rem; color: #65738a; }
+@media (max-width: 900px) { .resonance-columns { grid-template-columns: 1fr; } }

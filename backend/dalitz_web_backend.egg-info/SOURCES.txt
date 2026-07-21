@@ -11,6 +11,7 @@ app/services/__init__.py
 app/services/decays.py
 app/services/monte_carlo.py
 app/services/particles.py
+app/services/qrules_service.py
 dalitz_web_backend.egg-info/PKG-INFO
 dalitz_web_backend.egg-info/SOURCES.txt
 dalitz_web_backend.egg-info/dependency_links.txt
@@ -20,3 +21,4 @@ tests/test_api.py
 tests/test_particles.py
 tests/test_phase_space_api.py
 tests/test_phasespace_generator.py
+tests/test_qrules_validation.py

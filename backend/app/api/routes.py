@@ -7,6 +7,7 @@ from app.schemas import (
     PhaseSpaceGenerateResponse,
 )
 from app.services.decays import validate_decay
+from app.services.qrules_service import QRulesValidationError
 from app.services.monte_carlo import generate_weighted_sample
 from app.services.particles import ParticleLookupError, resolve_particle
 
@@ -36,7 +37,10 @@ def particle_info(particle_name: str) -> dict[str, object]:
 
 @router.post("/decays/validate", response_model=DecayValidation)
 def validate(payload: DecayRequest) -> DecayValidation:
-    return validate_decay(payload)
+    try:
+        return validate_decay(payload)
+    except QRulesValidationError as exc:
+        raise HTTPException(status_code=500, detail=f"QRules failed: {exc}") from exc
 
 
 @router.post("/phase-space/generate", response_model=PhaseSpaceGenerateResponse)

@@ -21,10 +21,24 @@ class DecayRequest(BaseModel):
     daughters: list[ParticleRef] = Field(min_length=3, max_length=3)
 
 
+class SuggestedResonance(BaseModel):
+    name: str
+    pdgid: int
+    pair: Literal["12", "13", "23"]
+    mass_gev: float | None = None
+    width_gev: float | None = None
+    spin: float | None = None
+
+
 class DecayValidation(BaseModel):
-    valid: bool
+    allowed: bool
+    channel: str
     message: str
     warnings: list[str] = Field(default_factory=list)
+    transition_count: int = 0
+    suggested_resonances: dict[str, list[SuggestedResonance]] = Field(
+        default_factory=lambda: {"12": [], "13": [], "23": []}
+    )
 
 
 class ResonanceConfig(BaseModel):

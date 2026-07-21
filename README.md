@@ -132,3 +132,22 @@ The React frontend now calls `POST /api/v1/phase-space/generate`, resolves the s
 - the three one-dimensional invariant-mass-squared projections.
 
 The default backend URL is `http://localhost:8000/api/v1`. Override it with `VITE_API_URL` when needed.
+
+## Automatic qrules validation
+
+The frontend calls `POST /api/v1/decays/validate` automatically after any change
+to the mother or daughter particles. The backend generates isobar transitions with
+`qrules`, reports whether at least one allowed transition exists, and groups the
+intermediate-state suggestions by the daughter pairs `12`, `13`, and `23`.
+
+Example request:
+
+```json
+{
+  "mother": {"name": "D0"},
+  "daughters": [{"name": "pi+"}, {"name": "pi-"}, {"name": "pi0"}]
+}
+```
+
+The result is cached in memory, because transition generation can take a few
+seconds for a channel that has not been evaluated before.
