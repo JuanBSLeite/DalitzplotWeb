@@ -86,3 +86,9 @@ button:disabled { opacity: 0.65; cursor: wait; }
 .normalization-list { display: grid; gap: .75rem; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
 .normalization-list > div { display: flex; flex-direction: column; gap: .25rem; padding: .9rem; border: 1px solid var(--border, #d8dee9); border-radius: .75rem; }
 .normalization-list span { font-size: .86rem; color: #64748b; }
+.theoretical-projections { margin-top: 18px; }
+.projection-card { background: #f7f9fc; border-radius: 12px; padding: 14px; overflow: hidden; }
+.projection-card h3 { margin: 0 0 6px; font-size: 1rem; }
+.download-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+button.secondary { background: #475569; }
+@media (max-width: 720px) { .download-actions { margin-top: 12px; } }

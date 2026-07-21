@@ -6,13 +6,16 @@ app/api/__init__.py
 app/api/routes.py
 app/physics/__init__.py
 app/physics/amplitudes.py
+app/physics/dalitz_grid.py
 app/physics/lineshapes.py
 app/physics/phasespace_generator.py
 app/services/__init__.py
 app/services/decays.py
+app/services/export.py
 app/services/monte_carlo.py
 app/services/particles.py
 app/services/qrules_service.py
+app/services/theoretical_plot.py
 dalitz_web_backend.egg-info/PKG-INFO
 dalitz_web_backend.egg-info/SOURCES.txt
 dalitz_web_backend.egg-info/dependency_links.txt
@@ -21,6 +24,7 @@ dalitz_web_backend.egg-info/top_level.txt
 tests/test_amplitudes.py
 tests/test_api.py
 tests/test_component_normalization.py
+tests/test_dalitz_grid.py
 tests/test_dynamic_rbw.py
 tests/test_particles.py
 tests/test_phase_space_api.py

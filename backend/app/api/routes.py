@@ -1,15 +1,20 @@
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import Response
 
 from app.schemas import (
     DecayRequest,
     DecayValidation,
     PhaseSpaceGenerateRequest,
     PhaseSpaceGenerateResponse,
+    TheoreticalPlotRequest,
+    TheoreticalPlotResponse,
 )
 from app.services.decays import validate_decay
-from app.services.qrules_service import QRulesValidationError
+from app.services.export import export_csv
 from app.services.monte_carlo import generate_weighted_sample
 from app.services.particles import ParticleLookupError, resolve_particle
+from app.services.qrules_service import QRulesValidationError
+from app.services.theoretical_plot import calculate_theoretical_plot
 
 router = APIRouter()
 
@@ -43,13 +48,36 @@ def validate(payload: DecayRequest) -> DecayValidation:
         raise HTTPException(status_code=500, detail=f"QRules failed: {exc}") from exc
 
 
-@router.post("/phase-space/generate", response_model=PhaseSpaceGenerateResponse)
-def generate_phase_space(
-    payload: PhaseSpaceGenerateRequest,
-) -> PhaseSpaceGenerateResponse:
+@router.post("/model/theoretical-plot", response_model=TheoreticalPlotResponse)
+def theoretical_plot(payload: TheoreticalPlotRequest) -> TheoreticalPlotResponse:
+    try:
+        return calculate_theoretical_plot(payload)
+    except (ParticleLookupError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.post("/toy/generate", response_model=PhaseSpaceGenerateResponse)
+def generate_toy(payload: PhaseSpaceGenerateRequest) -> PhaseSpaceGenerateResponse:
     try:
         return generate_weighted_sample(payload)
-    except ParticleLookupError as exc:
+    except (ParticleLookupError, ValueError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    except ValueError as exc:
+
+
+# Backward-compatible alias.
+@router.post("/phase-space/generate", response_model=PhaseSpaceGenerateResponse)
+def generate_phase_space(payload: PhaseSpaceGenerateRequest) -> PhaseSpaceGenerateResponse:
+    return generate_toy(payload)
+
+
+@router.post("/toy/export/csv")
+def download_csv(payload: PhaseSpaceGenerateRequest) -> Response:
+    try:
+        content = export_csv(payload)
+    except (ParticleLookupError, ValueError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return Response(
+        content=content,
+        media_type="text/csv",
+        headers={"Content-Disposition": 'attachment; filename="dalitz_toy.csv"'},
+    )

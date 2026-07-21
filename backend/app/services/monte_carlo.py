@@ -27,6 +27,8 @@ def _to_particle_info(particle: ResolvedParticle) -> ParticleInfo:
 
 def generate_weighted_sample(
     payload: PhaseSpaceGenerateRequest,
+    *,
+    include_complex_amplitude: bool = True,
 ) -> PhaseSpaceGenerateResponse:
     daughter_names = tuple(item.name for item in payload.daughters)
     mother, daughters = resolve_decay(payload.mother.name, daughter_names)
@@ -66,6 +68,8 @@ def generate_weighted_sample(
             s13=float(sample.s13[index]),
             s23=float(sample.s23[index]),
             phase_space_weight=float(sample.phase_space_weight[index]),
+            amplitude_real=float(evaluation.amplitude[index].real) if include_complex_amplitude else 0.0,
+            amplitude_imag=float(evaluation.amplitude[index].imag) if include_complex_amplitude else 0.0,
             amplitude_squared=float(amplitude_squared[index]),
             total_weight=float(total_weight[index]),
         )

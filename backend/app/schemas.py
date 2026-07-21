@@ -65,6 +65,28 @@ class PhaseSpaceGenerateRequest(BaseModel):
     normalize_components: bool = True
 
 
+class TheoreticalPlotRequest(BaseModel):
+    mother: ParticleRef
+    daughters: tuple[ParticleRef, ParticleRef, ParticleRef]
+    resonances: list[ResonanceConfig] = Field(default_factory=list)
+    resolution: int = Field(default=140, ge=40, le=350)
+    symmetrize: bool = True
+    normalize_components: bool = True
+
+
+class TheoreticalPlotResponse(BaseModel):
+    s12_axis: list[float]
+    s13_axis: list[float]
+    intensity: list[list[float | None]]
+    projection_s12: list[float]
+    projection_s13: list[float]
+    s23_axis: list[float]
+    projection_s23: list[float]
+    symmetrized: bool = False
+    symmetry_term_count: int = 1
+    component_normalizations: list["ComponentNormalization"] = Field(default_factory=list)
+
+
 class MonteCarloEvent(BaseModel):
     p1: tuple[float, float, float, float]
     p2: tuple[float, float, float, float]
@@ -73,6 +95,8 @@ class MonteCarloEvent(BaseModel):
     s13: float
     s23: float
     phase_space_weight: float
+    amplitude_real: float = 0.0
+    amplitude_imag: float = 0.0
     amplitude_squared: float
     total_weight: float
 
