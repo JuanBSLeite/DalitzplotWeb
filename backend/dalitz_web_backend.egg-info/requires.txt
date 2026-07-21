@@ -5,7 +5,7 @@ numpy>=2.0
 scipy>=1.14
 particle>=0.25
 qrules>=0.10
-phasespace>=1.10.4
+phasespace[tf]>=1.10.4
 
 [dev]
 pytest>=8

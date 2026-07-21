@@ -1,11 +1,6 @@
 from fastapi import FastAPI
-
-from app.api.routes import router as api_router
-
-app = FastAPI(title="Dalitz Web Backend")
-app.include_router(api_router, prefix="/api/v1")
-
-
-@app.get("/")
-def root() -> dict[str, str]:
-    return {"message": "Dalitz Web Backend"}
+from fastapi.middleware.cors import CORSMiddleware
+from app.api.routes import router
+app=FastAPI(title="Dalitz Web Visualizer API",version="0.1.0")
+app.add_middleware(CORSMiddleware,allow_origins=["http://localhost:5173"],allow_methods=["*"],allow_headers=["*"])
+app.include_router(router,prefix="/api/v1")
