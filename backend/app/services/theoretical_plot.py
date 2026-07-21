@@ -6,6 +6,7 @@ from app.physics.amplitudes import AmplitudeModel
 from app.physics.dalitz_grid import build_dalitz_grid
 from app.schemas import (
     ComponentNormalization,
+    FitFraction,
     TheoreticalPlotRequest,
     TheoreticalPlotResponse,
 )
@@ -57,6 +58,17 @@ def calculate_theoretical_plot(payload: TheoreticalPlotRequest) -> TheoreticalPl
     )
     s23_centres = 0.5 * (s23_edges[:-1] + s23_edges[1:])
 
+    total_integral = float(np.mean(evaluation.amplitude_squared))
+    fit_fractions: list[FitFraction] = []
+    if total_integral > 0.0:
+        for key, component in evaluation.component_amplitudes.items():
+            numerator = float(np.mean(np.abs(component) ** 2))
+            fraction = numerator / total_integral
+            fit_fractions.append(
+                FitFraction(key=key, fraction=fraction, percent=100.0 * fraction)
+            )
+    fit_fraction_sum = float(sum(item.fraction for item in fit_fractions))
+
     return TheoreticalPlotResponse(
         s12_axis=grid.x_axis.tolist(),
         s13_axis=grid.y_axis.tolist(),
@@ -75,4 +87,6 @@ def calculate_theoretical_plot(payload: TheoreticalPlotRequest) -> TheoreticalPl
             )
             for key, integral in evaluation.component_normalization_integrals.items()
         ],
+        fit_fractions=fit_fractions,
+        fit_fraction_sum=fit_fraction_sum,
     )

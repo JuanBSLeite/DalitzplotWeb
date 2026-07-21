@@ -60,3 +60,11 @@ Phase-space weights, complex amplitudes, total weights, event IDs, and metadata 
 ## Resonance parameter editing
 
 The resonance editor accepts a numerical phase in degrees and allows the user to override the particle-database defaults for pole mass, pole width, spin/orbital L, resonance radius, and mother radius.
+
+## Fit fractions
+
+The theoretical-model response includes the fit fraction of every selected amplitude,
+
+`FF_r = integral |A_r|^2 dPhi3 / integral |sum_k A_k|^2 dPhi3`.
+
+They are displayed in **Selected amplitudes** and update automatically. Their sum can differ from 100% because interference terms are present only in the total denominator.

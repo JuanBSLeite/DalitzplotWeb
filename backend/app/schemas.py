@@ -74,6 +74,12 @@ class TheoreticalPlotRequest(BaseModel):
     normalize_components: bool = True
 
 
+class FitFraction(BaseModel):
+    key: str
+    fraction: float
+    percent: float
+
+
 class TheoreticalPlotResponse(BaseModel):
     s12_axis: list[float]
     s13_axis: list[float]
@@ -85,6 +91,8 @@ class TheoreticalPlotResponse(BaseModel):
     symmetrized: bool = False
     symmetry_term_count: int = 1
     component_normalizations: list["ComponentNormalization"] = Field(default_factory=list)
+    fit_fractions: list[FitFraction] = Field(default_factory=list)
+    fit_fraction_sum: float = 0.0
 
 
 class MonteCarloEvent(BaseModel):
