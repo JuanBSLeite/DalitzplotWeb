@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import numpy as np
 
+from app.physics.amplitudes import AmplitudeModel
 from app.physics.phasespace_generator import PhaseSpaceGenerator
 from app.schemas import (
+    ComponentNormalization,
     MonteCarloEvent,
     ParticleInfo,
     PhaseSpaceGenerateRequest,
@@ -37,9 +39,21 @@ def generate_weighted_sample(
         seed=payload.seed,
     )
 
-    # Placeholder until the amplitude engine is connected. Keeping this
-    # separate from the phase-space weight fixes the correct data contract.
-    amplitude_squared = np.ones(sample.n_events, dtype=np.float64)
+    evaluation = AmplitudeModel(
+        payload.resonances,
+        mother_mass=mother.mass_gev,
+        daughter_masses=tuple(particle.mass_gev for particle in daughters),
+        daughter_ids=tuple(particle.pdgid for particle in daughters),
+        symmetrize=payload.symmetrize,
+    ).evaluate(
+        momenta=sample.momenta,
+        s12=sample.s12,
+        s13=sample.s13,
+        s23=sample.s23,
+        phase_space_weight=sample.phase_space_weight,
+        normalize_components=payload.normalize_components,
+    )
+    amplitude_squared = evaluation.amplitude_squared.astype(np.float64)
     total_weight = sample.phase_space_weight * amplitude_squared
 
     p1, p2, p3 = sample.momenta
@@ -61,5 +75,16 @@ def generate_weighted_sample(
     return PhaseSpaceGenerateResponse(
         mother=_to_particle_info(mother),
         daughters=tuple(_to_particle_info(particle) for particle in daughters),
+        symmetrized=evaluation.symmetrized,
+        symmetry_term_count=evaluation.symmetry_term_count,
+        components_normalized=payload.normalize_components,
+        component_normalizations=[
+            ComponentNormalization(
+                key=key,
+                integral=integral,
+                amplitude_scale=1.0 / float(np.sqrt(integral)),
+            )
+            for key, integral in evaluation.component_normalization_integrals.items()
+        ],
         events=events,
     )

@@ -50,6 +50,8 @@ class ResonanceConfig(BaseModel):
     lineshape: Literal["RBW", "GS", "FLATTE"] = "RBW"
     magnitude: float = 1.0
     phase_deg: float = 0.0
+    resonance_radius: float = Field(default=1.5, gt=0.0)
+    mother_radius: float = Field(default=5.0, gt=0.0)
     source: Literal["suggested", "database", "custom"] = "custom"
 
 
@@ -58,6 +60,9 @@ class PhaseSpaceGenerateRequest(BaseModel):
     daughters: tuple[ParticleRef, ParticleRef, ParticleRef]
     n_events: int = Field(default=10_000, ge=1, le=1_000_000)
     seed: int | None = None
+    resonances: list[ResonanceConfig] = Field(default_factory=list)
+    symmetrize: bool = True
+    normalize_components: bool = True
 
 
 class MonteCarloEvent(BaseModel):
@@ -72,8 +77,18 @@ class MonteCarloEvent(BaseModel):
     total_weight: float
 
 
+class ComponentNormalization(BaseModel):
+    key: str
+    integral: float
+    amplitude_scale: float
+
+
 class PhaseSpaceGenerateResponse(BaseModel):
     mother: ParticleInfo
     daughters: tuple[ParticleInfo, ParticleInfo, ParticleInfo]
     unit: Literal["GeV"] = "GeV"
+    symmetrized: bool = False
+    symmetry_term_count: int = 1
+    components_normalized: bool = True
+    component_normalizations: list[ComponentNormalization] = Field(default_factory=list)
     events: list[MonteCarloEvent]

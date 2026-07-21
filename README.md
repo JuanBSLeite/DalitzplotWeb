@@ -151,3 +151,41 @@ Example request:
 
 The result is cached in memory, because transition generation can take a few
 seconds for a channel that has not been evaluated before.
+
+## Resonance-weighted Dalitz model
+
+The current implementation supports a coherent sum of selected suggested resonances using constant-width relativistic Breit-Wigner line shapes:
+
+```text
+A(s12,s13,s23) = sum_r a_r exp(i phi_r) RBW_r(s_pair)
+total_weight = phase_space_weight * |A|^2
+```
+
+Magnitude and phase are editable in the frontend. Spin factors, Blatt-Weisskopf factors, Gounaris-Sakurai and Flatte remain planned extensions and are not silently approximated.
+
+## Dynamic RBW model
+
+The RBW amplitude now includes a mass-dependent width, normalised
+Blatt-Weisskopf barrier factors at the resonance and mother vertices, and
+Zemach angular terms for spin 0, 1 and 2. The default radii are 1.5 GeV^-1 for
+the resonance and 5.0 GeV^-1 for the mother, and both can be edited in the UI.
+
+## Identical-particle symmetrization
+
+The amplitude engine automatically detects identical final-state particles from their PDG IDs. Each isobar component is summed coherently over all distinct bachelor/pair assignments before calculating the intensity:
+
+\[
+\mathcal A_{\rm sym} = \sum_{\pi\in S_{\rm identical}} \mathcal A_\pi,
+\qquad I = |\mathcal A_{\rm sym}|^2.
+\]
+
+Permutations that only reverse the two daughters inside the same isobar are deduplicated, avoiding double counting. For `D+ -> pi+ pi- pi+`, a resonance configured in pair `12` is therefore evaluated in both `12` and `23`. The request field `symmetrize` defaults to `true`.
+
+
+## Component normalization
+
+Each selected resonance basis amplitude is normalized numerically over the generated three-body phase-space sample before applying its magnitude and phase:
+
+`F_r -> F_r / sqrt(<w_PS |F_r|^2>)`.
+
+The normalized object already includes the dynamic lineshape, Blatt-Weisskopf factors, Zemach angular term, and identical-particle symmetrization. The API returns the raw normalization integral and applied amplitude scale for every component.

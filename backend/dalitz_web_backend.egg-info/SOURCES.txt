@@ -5,6 +5,7 @@ app/schemas.py
 app/api/__init__.py
 app/api/routes.py
 app/physics/__init__.py
+app/physics/amplitudes.py
 app/physics/lineshapes.py
 app/physics/phasespace_generator.py
 app/services/__init__.py
@@ -17,8 +18,12 @@ dalitz_web_backend.egg-info/SOURCES.txt
 dalitz_web_backend.egg-info/dependency_links.txt
 dalitz_web_backend.egg-info/requires.txt
 dalitz_web_backend.egg-info/top_level.txt
+tests/test_amplitudes.py
 tests/test_api.py
+tests/test_component_normalization.py
+tests/test_dynamic_rbw.py
 tests/test_particles.py
 tests/test_phase_space_api.py
 tests/test_phasespace_generator.py
 tests/test_qrules_validation.py
+tests/test_symmetrization.py
