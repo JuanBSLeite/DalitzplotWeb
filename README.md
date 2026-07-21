@@ -56,3 +56,7 @@ The CSV export contains only:
 - `dynamic_weight`, defined as the normalized model intensity `|A|^2`
 
 Phase-space weights, complex amplitudes, total weights, event IDs, and metadata are not exported.
+
+## Resonance parameter editing
+
+The resonance editor accepts a numerical phase in degrees and allows the user to override the particle-database defaults for pole mass, pole width, spin/orbital L, resonance radius, and mother radius.
