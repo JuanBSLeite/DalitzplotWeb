@@ -1,0 +1,126 @@
+{
+  "schema_version": "1.0",
+  "decay": {
+    "mother": "D+",
+    "daughters": [
+      "pi-",
+      "pi+",
+      "pi+"
+    ],
+    "symmetrize": true
+  },
+  "amplitudes": [
+    {
+      "component_type": "resonant",
+      "name": "f(0)(500)",
+      "pdgid": null,
+      "pair": "12",
+      "lineshape": "RBW",
+      "spin": 0,
+      "mass_mev": 478.0,
+      "width_mev": 324.0,
+      "magnitude": 1.17,
+      "phase_deg": 205.7,
+      "resonance_radius_gev_inv": 15.203,
+      "mother_radius_gev_inv": 0.01,
+      "source": "custom"
+    },
+    {
+      "component_type": "resonant",
+      "name": "rho(770)0",
+      "pdgid": 113,
+      "pair": "12",
+      "lineshape": "RBW",
+      "spin": 1,
+      "mass_mev": 775.26,
+      "width_mev": 149.1,
+      "magnitude": 1.0,
+      "phase_deg": 0.0,
+      "resonance_radius_gev_inv": 15.203,
+      "mother_radius_gev_inv": 0.01,
+      "source": "database"
+    },
+    {
+      "component_type": "nonresonant",
+      "name": "Non-resonant",
+      "pdgid": null,
+      "pair": "12",
+      "lineshape": "RBW",
+      "spin": 0,
+      "mass_mev": 1.0,
+      "width_mev": 1.0,
+      "magnitude": 0.48,
+      "phase_deg": 57.3,
+      "resonance_radius_gev_inv": 1.5,
+      "mother_radius_gev_inv": 5.0,
+      "source": "custom"
+    },
+    {
+      "component_type": "resonant",
+      "name": "f(0)(980)",
+      "pdgid": 9010221,
+      "pair": "12",
+      "lineshape": "RBW",
+      "spin": 0,
+      "mass_mev": 990.0,
+      "width_mev": 60.0,
+      "magnitude": 0.43,
+      "phase_deg": 165.0,
+      "resonance_radius_gev_inv": 15.203,
+      "mother_radius_gev_inv": 0.01,
+      "source": "database"
+    },
+    {
+      "component_type": "resonant",
+      "name": "f(2)(1270)",
+      "pdgid": 225,
+      "pair": "12",
+      "lineshape": "RBW",
+      "spin": 2,
+      "mass_mev": 1275.5,
+      "width_mev": 186.7,
+      "magnitude": 0.76,
+      "phase_deg": 57.3,
+      "resonance_radius_gev_inv": 15.203,
+      "mother_radius_gev_inv": 0.01,
+      "source": "database"
+    },
+    {
+      "component_type": "resonant",
+      "name": "f(0)(1370)",
+      "pdgid": 10221,
+      "pair": "12",
+      "lineshape": "RBW",
+      "spin": 0,
+      "mass_mev": 1350.0,
+      "width_mev": 350.0,
+      "magnitude": 0.26,
+      "phase_deg": 105.4,
+      "resonance_radius_gev_inv": 15.203,
+      "mother_radius_gev_inv": 0.01,
+      "source": "database"
+    },
+    {
+      "component_type": "resonant",
+      "name": "rho(1450)0",
+      "pdgid": 100113,
+      "pair": "12",
+      "lineshape": "RBW",
+      "spin": 1,
+      "mass_mev": 1465.0,
+      "width_mev": 400.0,
+      "magnitude": 0.14,
+      "phase_deg": 319.1,
+      "resonance_radius_gev_inv": 15.203,
+      "mother_radius_gev_inv": 0.01,
+      "source": "database"
+    }
+  ],
+  "plot": {
+    "resolution": 180
+  },
+  "toy": {
+    "n_events": 100000,
+    "seed": 791
+  }
+}
