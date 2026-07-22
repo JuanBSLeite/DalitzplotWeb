@@ -68,3 +68,18 @@ The theoretical-model response includes the fit fraction of every selected ampli
 `FF_r = integral |A_r|^2 dPhi3 / integral |sum_k A_k|^2 dPhi3`.
 
 They are displayed in **Selected amplitudes** and update automatically. Their sum can differ from 100% because interference terms are present only in the total denominator.
+
+## Import and export amplitude models
+
+The header includes **Export model** and **Import model** actions.
+
+- Export creates a versioned JSON document (`schema_version: 1.0`).
+- Import validates the JSON with the backend, rechecks the decay with `qrules`, and restores the channel, amplitudes, dynamic-RBW parameters, plot resolution, toy event count, and seed.
+- Imported models automatically rebuild the theoretical plots, component normalizations, and fit fractions.
+
+Model files store masses and widths in MeV for readability, while the numerical backend continues to use GeV internally.
+
+
+## Non-resonant amplitude
+
+The model can include one normalized constant scalar non-resonant term with an editable magnitude and phase. It participates coherently in the total amplitude, fit fractions, toy generation, and JSON import/export.

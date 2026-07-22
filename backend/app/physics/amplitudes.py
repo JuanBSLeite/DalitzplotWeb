@@ -207,31 +207,38 @@ class AmplitudeModel:
             raise ValueError("phase_space_weight must have the same shape as the invariants")
 
         for index, config in enumerate(self.resonances):
-            if config.lineshape != "RBW":
-                raise ValueError(f"Lineshape {config.lineshape} is not implemented yet; use RBW")
-            if config.mass <= 0 or config.width <= 0:
-                raise ValueError("Resonance mass and width must be positive")
-
-            if self.symmetrize:
-                chains = _mapped_decay_chains(config.pair, self.daughter_ids)
+            if config.component_type == "nonresonant":
+                # Constant scalar amplitude over the physical three-body phase space.
+                # It is normalized with the same convention as every other component.
+                symmetrized_component = np.ones_like(s12, dtype=np.complex128)
+                chains = ((0, 1, 2),)
+                key = f"{index}:{config.name}:NR"
             else:
-                i, j = config.pair[0] - 1, config.pair[1] - 1
-                bachelor = next(k for k in range(3) if k not in (i, j))
-                chains = ((i, j, bachelor),)
+                if config.lineshape != "RBW":
+                    raise ValueError(f"Lineshape {config.lineshape} is not implemented yet; use RBW")
+                if config.mass <= 0 or config.width <= 0:
+                    raise ValueError("Resonance mass and width must be positive")
 
-            max_chain_count = max(max_chain_count, len(chains))
-            symmetrized_component = np.zeros_like(s12, dtype=np.complex128)
-            for chain in chains:
-                symmetrized_component += self._evaluate_chain(
-                    config,
-                    chain,
-                    momenta=momenta,
-                    s12=s12,
-                    s13=s13,
-                    s23=s23,
-                )
+                if self.symmetrize:
+                    chains = _mapped_decay_chains(config.pair, self.daughter_ids)
+                else:
+                    i, j = config.pair[0] - 1, config.pair[1] - 1
+                    bachelor = next(k for k in range(3) if k not in (i, j))
+                    chains = ((i, j, bachelor),)
 
-            key = f"{index}:{config.name}:{config.pair[0]}{config.pair[1]}"
+                max_chain_count = max(max_chain_count, len(chains))
+                symmetrized_component = np.zeros_like(s12, dtype=np.complex128)
+                for chain in chains:
+                    symmetrized_component += self._evaluate_chain(
+                        config,
+                        chain,
+                        momenta=momenta,
+                        s12=s12,
+                        s13=s13,
+                        s23=s23,
+                    )
+
+                key = f"{index}:{config.name}:{config.pair[0]}{config.pair[1]}"
             if normalize_components:
                 if phase_space_weight is None:
                     raise ValueError(

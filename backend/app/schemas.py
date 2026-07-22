@@ -42,6 +42,7 @@ class DecayValidation(BaseModel):
 
 
 class ResonanceConfig(BaseModel):
+    component_type: Literal["resonant", "nonresonant"] = "resonant"
     name: str
     pair: tuple[int, int]
     spin: int = 0
@@ -124,3 +125,34 @@ class PhaseSpaceGenerateResponse(BaseModel):
     components_normalized: bool = True
     component_normalizations: list[ComponentNormalization] = Field(default_factory=list)
     events: list[MonteCarloEvent]
+
+
+class ModelAmplitudeDocument(BaseModel):
+    component_type: Literal["resonant", "nonresonant"] = "resonant"
+    name: str
+    pdgid: int | None = None
+    pair: Literal["12", "13", "23"]
+    lineshape: Literal["RBW", "GS", "FLATTE"] = "RBW"
+    spin: int
+    mass_mev: float = Field(gt=0.0)
+    width_mev: float = Field(gt=0.0)
+    magnitude: float = Field(ge=0.0)
+    phase_deg: float
+    resonance_radius_gev_inv: float = Field(default=1.5, gt=0.0)
+    mother_radius_gev_inv: float = Field(default=5.0, gt=0.0)
+    source: Literal["suggested", "database", "custom"] = "suggested"
+
+
+class ModelDocument(BaseModel):
+    schema_version: Literal["1.0"] = "1.0"
+    decay: dict[str, object]
+    amplitudes: list[ModelAmplitudeDocument] = Field(default_factory=list)
+    plot: dict[str, object] = Field(default_factory=lambda: {"resolution": 140})
+    toy: dict[str, object] = Field(default_factory=lambda: {"n_events": 10_000, "seed": 7})
+
+
+class ModelImportValidation(BaseModel):
+    valid: bool
+    allowed: bool
+    channel: str
+    warnings: list[str] = Field(default_factory=list)

@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0",
+  "decay": {
+    "mother": "D0",
+    "daughters": ["pi+", "pi-", "pi0"],
+    "symmetrize": true
+  },
+  "amplitudes": [],
+  "plot": {
+    "resolution": 140
+  },
+  "toy": {
+    "n_events": 10000,
+    "seed": 7
+  }
+}

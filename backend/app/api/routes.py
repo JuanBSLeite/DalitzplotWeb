@@ -8,6 +8,9 @@ from app.schemas import (
     PhaseSpaceGenerateResponse,
     TheoreticalPlotRequest,
     TheoreticalPlotResponse,
+    ModelDocument,
+    ModelImportValidation,
+    ParticleRef,
 )
 from app.services.decays import validate_decay
 from app.services.export import export_csv
@@ -46,6 +49,44 @@ def validate(payload: DecayRequest) -> DecayValidation:
         return validate_decay(payload)
     except QRulesValidationError as exc:
         raise HTTPException(status_code=500, detail=f"QRules failed: {exc}") from exc
+
+
+
+
+@router.post("/model/validate-import", response_model=ModelImportValidation)
+def validate_imported_model(payload: ModelDocument) -> ModelImportValidation:
+    decay = payload.decay
+    mother = decay.get("mother")
+    daughters = decay.get("daughters")
+    if not isinstance(mother, str) or not isinstance(daughters, list) or len(daughters) != 3 or not all(isinstance(item, str) for item in daughters):
+        raise HTTPException(status_code=422, detail="The model decay must contain one mother and exactly three daughter names.")
+
+    warnings: list[str] = []
+    validation = validate_decay(
+        DecayRequest(
+            mother=ParticleRef(name=mother),
+            daughters=[ParticleRef(name=item) for item in daughters],
+        )
+    )
+    for amplitude in payload.amplitudes:
+        if amplitude.component_type == "nonresonant":
+            continue
+        try:
+            particle = resolve_particle(amplitude.name)
+        except ParticleLookupError:
+            warnings.append(f"Amplitude '{amplitude.name}' is not present in the particle database; imported as a custom state.")
+            continue
+        if particle.spin is not None and round(particle.spin) != amplitude.spin:
+            warnings.append(
+                f"Amplitude '{amplitude.name}' has spin {amplitude.spin} in the file but {particle.spin:g} in the particle database."
+            )
+
+    return ModelImportValidation(
+        valid=True,
+        allowed=validation.allowed,
+        channel=validation.channel,
+        warnings=[*validation.warnings, *warnings],
+    )
 
 
 @router.post("/model/theoretical-plot", response_model=TheoreticalPlotResponse)
