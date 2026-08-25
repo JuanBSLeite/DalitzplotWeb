@@ -19,15 +19,17 @@ Interactive three-body amplitude-model playground.
 
 ## Run on Linux
 
+Start the backend:
+
 ```bash
 cd backend
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -e '.[dev]'
-python -m uvicorn app.main:app --reload
+python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-In another terminal:
+In another terminal, start the frontend:
 
 ```bash
 cd frontend
@@ -35,7 +37,46 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:5173`. API documentation is at `http://localhost:8000/docs`.
+The Vite development server is configured to listen on `0.0.0.0:80` with `strictPort: true`.
+
+Open the application at:
+
+```text
+http://localhost/
+```
+
+or, from another machine on the network:
+
+```text
+http://SERVER_IP/
+```
+
+API documentation is available at:
+
+```text
+http://localhost:8000/docs
+```
+
+### Permission to use port 80 on Linux
+
+Port 80 is a privileged port on Linux. If `npm run dev` reports a permission error, allow the Node executable to bind to privileged ports once with:
+
+```bash
+sudo setcap 'cap_net_bind_service=+ep' "$(readlink -f "$(which node)")"
+```
+
+Then run the frontend normally again:
+
+```bash
+npm run dev
+```
+
+If `firewalld` is enabled and the application must be reachable from other machines, allow HTTP traffic with:
+
+```bash
+sudo firewall-cmd --permanent --add-service=http
+sudo firewall-cmd --reload
+```
 
 ## Main endpoints
 
@@ -43,7 +84,6 @@ Open `http://localhost:5173`. API documentation is at `http://localhost:8000/doc
 - `POST /api/v1/model/theoretical-plot`
 - `POST /api/v1/toy/generate`
 - `POST /api/v1/toy/export/csv`
-
 
 ## Toy export columns
 
@@ -78,7 +118,6 @@ The header includes **Export model** and **Import model** actions.
 - Imported models automatically rebuild the theoretical plots, component normalizations, and fit fractions.
 
 Model files store masses and widths in MeV for readability, while the numerical backend continues to use GeV internally.
-
 
 ## Non-resonant amplitude
 
