@@ -17,13 +17,98 @@ Interactive three-body amplitude-model playground.
 - optional toy Monte Carlo Dalitz plot and weighted histograms;
 - toy export in CSV.
 
+## Tested environment
+
+The backend has been tested with **Python 3.12**.
+
+The frontend has been tested with **Node.js 22**. On Linux, using `nvm` is recommended because it makes it easy to install and switch Node.js versions without replacing system packages.
+
+## AlmaLinux 9 setup
+
+### Install Python 3.12
+
+```bash
+sudo dnf install -y python3.12 python3.12-pip
+```
+
+Check the installation:
+
+```bash
+python3.12 --version
+python3.12 -m pip --version
+```
+
+Create the backend virtual environment explicitly with Python 3.12:
+
+```bash
+cd backend
+python3.12 -m venv .venv
+source .venv/bin/activate
+python --version
+```
+
+The last command should report Python 3.12.x.
+
+### Install Node.js 22 with NVM
+
+Install the basic tools first:
+
+```bash
+sudo dnf install -y curl ca-certificates
+```
+
+Install NVM:
+
+```bash
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
+```
+
+Load NVM in the current shell without logging out:
+
+```bash
+\. "$HOME/.nvm/nvm.sh"
+```
+
+Install and select Node.js 22:
+
+```bash
+nvm install 22
+nvm use 22
+nvm alias default 22
+```
+
+Check the installed versions:
+
+```bash
+node --version
+npm --version
+```
+
+A tested Node.js version for this project is:
+
+```text
+v22.23.2
+```
+
+If a new shell does not recognize `nvm`, reload your shell configuration:
+
+```bash
+source ~/.bashrc
+```
+
+or load NVM directly again:
+
+```bash
+\. "$HOME/.nvm/nvm.sh"
+```
+
 ## Run on Linux
 
 Start the backend:
 
 ```bash
 cd backend
-python3 -m venv .venv
+python3.12 -m venv .venv
 source .venv/bin/activate
 pip install -e '.[dev]'
 python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
