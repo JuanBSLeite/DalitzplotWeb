@@ -17,6 +17,12 @@ Interactive three-body amplitude-model playground.
 - optional toy Monte Carlo Dalitz plot and weighted histograms;
 - toy export in CSV.
 
+## Physics conventions
+
+The detailed definitions used for breakup momenta, Blatt-Weisskopf barrier factors, Zemach angular terms, the mass-dependent width, and the relativistic Breit-Wigner are documented in [`docs/PHYSICS_CONVENTIONS.md`](docs/PHYSICS_CONVENTIONS.md).
+
+The current implementation adopts the spin-0 Dalitz/Zemach convention in which the resonance-daughter momentum `q` and bachelor momentum `p` are evaluated in the resonance rest frame. The physical threshold is explicitly enforced when calculating breakup momenta.
+
 ## Tested environment
 
 The backend has been tested with **Python 3.12**.
