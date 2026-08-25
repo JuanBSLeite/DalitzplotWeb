@@ -47,7 +47,21 @@ def _zemach_angular_term(
     bachelor: np.ndarray,
     resonance: np.ndarray,
 ) -> np.ndarray:
-    """Return Zemach angular factors for spin 0, 1, or 2."""
+    """Return Zemach angular factors for spin 0, 1, or 2.
+
+    The project uses the standard spin-0 parent / spin-0 daughters Zemach
+    convention, with both vectors evaluated in the resonance rest frame:
+
+        Z_0 = 1
+        Z_1 = -2 p.q
+        Z_2 = (4/3) [3 (p.q)^2 - |p|^2 |q|^2]
+
+    Here q is the momentum of the first listed resonance daughter and p is
+    the bachelor momentum.  Exchanging which resonance daughter defines q
+    flips Z_1 but leaves Z_0 and Z_2 unchanged; that sign is part of the
+    chosen amplitude convention and must be kept consistent when defining
+    decay chains and phases.
+    """
 
     if spin not in (0, 1, 2):
         raise ValueError("Zemach angular terms are currently implemented for spin 0, 1, and 2")
