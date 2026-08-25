@@ -47,15 +47,31 @@ Below the physical threshold
 sqrt(s) < m_a + m_b
 ```
 
-this implementation sets `q = 0`.
+this implementation sets the event-by-event physical momentum to `q = 0`.
 
 The explicit threshold condition is important for unequal masses because the Källén function becomes positive again below the pseudo-threshold `|m_a-m_b|`; that region is not the physical two-body decay region.
 
-At the pole,
+For a pole inside the physical region,
 
 ```text
 q0 = q(m0^2).
 ```
+
+### Subthreshold resonance poles
+
+The code allows a resonance pole mass `m0` below the daughter threshold `m_a + m_b`.
+
+In that case the physical pole momentum is not real, so the real running-width convention used by this project defines a positive reference scale
+
+```text
+q0 = sqrt(|lambda(m0^2,m_a^2,m_b^2)|) / (2 m0).
+```
+
+This `q0` is used only to normalize the real Blatt-Weisskopf factors and the running-width power law. The event-by-event momentum `q(s)` remains the physical breakup momentum and is still set to zero whenever the daughter channel is closed.
+
+If the pole lies exactly at threshold, `q0 = 0` and the usual `(q/q0)^(2L+1)` normalization is undefined. The implementation therefore accepts the pole and uses a constant-width fallback in that exceptional case.
+
+This is a pragmatic real-valued prescription for visualization and model exploration. It is not a replacement for a full complex analytic continuation or a coupled-channel lineshape when those are physically required.
 
 ## Bachelor momentum p
 
@@ -123,7 +139,7 @@ These are model parameters and can be edited in the frontend.
 
 ## Mass-dependent width
 
-The relativistic Breit-Wigner uses
+For poles with a finite reference momentum `q0`, the relativistic Breit-Wigner uses
 
 ```text
 Gamma(s) = Gamma0
@@ -132,15 +148,17 @@ Gamma(s) = Gamma0
            F_R(q,q0)^2.
 ```
 
-The width is set to zero below the physical resonance-daughter threshold.
+The width is set to zero where the physical resonance-daughter channel is closed.
 
-At the pole,
+For a pole in the physical region,
 
 ```text
 Gamma(m0^2) = Gamma0,
 ```
 
 because `q=q0` and the normalized resonance barrier factor equals one.
+
+For a subthreshold pole, `Gamma0` is treated as the user-supplied nominal width parameter while `q0` is the positive reference scale defined above. Because `m0^2` itself is outside the open two-body region, the identity `Gamma(m0^2)=Gamma0` is not imposed there.
 
 ## Relativistic Breit-Wigner
 
@@ -150,7 +168,7 @@ The implemented denominator convention is
 BW(s) = F_M F_R / [m0^2 - s - i m0 Gamma(s)].
 ```
 
-At `s=m0^2`, with normalized barrier factors,
+For a pole inside the physical region, at `s=m0^2` with normalized barrier factors,
 
 ```text
 BW(m0^2) = i / (m0 Gamma0).
