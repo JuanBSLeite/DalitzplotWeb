@@ -37,7 +37,7 @@ npm install
 npm run dev
 ```
 
-The Vite development server is currently configured to listen on `0.0.0.0:8016` with `strictPort: true` for external-network testing.
+The Vite development server listens on `0.0.0.0:8016` with `strictPort: true`.
 
 Open the application locally at:
 
@@ -51,34 +51,82 @@ or, from another machine on the network:
 http://SERVER_IP:8016/
 ```
 
-API documentation is available at:
+API documentation is available directly from the backend at:
 
 ```text
 http://localhost:8000/docs
 ```
 
-### Allow port 8016 through firewalld
+## Frontend-backend communication
 
-Port 8016 does not require root privileges, but it must be allowed through the firewall if the application needs to be reachable from another machine.
+During development, the frontend uses a relative API URL:
+
+```text
+/api/v1
+```
+
+The Vite development server proxies `/api/*` requests to the FastAPI backend at:
+
+```text
+http://127.0.0.1:8000
+```
+
+This is configured in `frontend/vite.config.ts`, while `frontend/.env.development` defines:
+
+```text
+VITE_API_URL=/api/v1
+```
+
+Using a relative API URL is important for remote testing. If the frontend is opened from another computer, `localhost` would otherwise refer to that computer rather than to the AlmaLinux server running the backend.
+
+For example, a browser request to:
+
+```text
+http://SERVER_IP:8016/api/v1/decays/validate
+```
+
+is received by Vite and forwarded internally to:
+
+```text
+http://127.0.0.1:8000/api/v1/decays/validate
+```
+
+After changing `vite.config.ts` or `.env.development`, restart `npm run dev`.
+
+## Network and firewall
+
+Port 8016 does not require root privileges, but it must be allowed through the firewall for remote access:
 
 ```bash
 sudo firewall-cmd --permanent --add-port=8016/tcp
 sudo firewall-cmd --reload
 ```
 
-Confirm the rule with:
+Confirm the rule:
 
 ```bash
 sudo firewall-cmd --query-port=8016/tcp
 ```
 
-Confirm that Vite is listening on the expected interface and port:
+Confirm that Vite is listening externally:
 
 ```bash
 sudo ss -lptn 'sport = :8016'
 ```
 
-For a remote connectivity test, open:
+The backend only needs to be reachable by Vite on the same server for the development proxy setup. You can test it locally with:
+
+```bash
+curl http://127.0.0.1:8000/docs
+```
+
+Then test the complete frontend path from the server:
+
+```bash
+curl http://127.0.0.1:8016/
+```
+
+For the remote connectivity test, open:
 
 ```text
 http://SERVER_IP:8016/
