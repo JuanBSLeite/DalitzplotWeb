@@ -37,18 +37,18 @@ npm install
 npm run dev
 ```
 
-The Vite development server is configured to listen on `0.0.0.0:80` with `strictPort: true`.
+The Vite development server is currently configured to listen on `0.0.0.0:8016` with `strictPort: true` for external-network testing.
 
-Open the application at:
+Open the application locally at:
 
 ```text
-http://localhost/
+http://localhost:8016/
 ```
 
 or, from another machine on the network:
 
 ```text
-http://SERVER_IP/
+http://SERVER_IP:8016/
 ```
 
 API documentation is available at:
@@ -57,25 +57,31 @@ API documentation is available at:
 http://localhost:8000/docs
 ```
 
-### Permission to use port 80 on Linux
+### Allow port 8016 through firewalld
 
-Port 80 is a privileged port on Linux. If `npm run dev` reports a permission error, allow the Node executable to bind to privileged ports once with:
-
-```bash
-sudo setcap 'cap_net_bind_service=+ep' "$(readlink -f "$(which node)")"
-```
-
-Then run the frontend normally again:
+Port 8016 does not require root privileges, but it must be allowed through the firewall if the application needs to be reachable from another machine.
 
 ```bash
-npm run dev
-```
-
-If `firewalld` is enabled and the application must be reachable from other machines, allow HTTP traffic with:
-
-```bash
-sudo firewall-cmd --permanent --add-service=http
+sudo firewall-cmd --permanent --add-port=8016/tcp
 sudo firewall-cmd --reload
+```
+
+Confirm the rule with:
+
+```bash
+sudo firewall-cmd --query-port=8016/tcp
+```
+
+Confirm that Vite is listening on the expected interface and port:
+
+```bash
+sudo ss -lptn 'sport = :8016'
+```
+
+For a remote connectivity test, open:
+
+```text
+http://SERVER_IP:8016/
 ```
 
 ## Main endpoints
