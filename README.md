@@ -11,17 +11,28 @@ Interactive three-body amplitude-model playground.
 - mass-dependent width;
 - Blatt-Weisskopf factors at the mother and resonance vertices;
 - Zemach angular terms for spin 0, 1 and 2;
+- support for resonance pole masses below the daughter threshold;
 - automatic identical-particle symmetrization;
 - normalization of each complete symmetrized amplitude contribution;
-- automatic theoretical Dalitz heatmap and three theoretical projections;
+- selectable theoretical Dalitz visualization as a 2D heatmap or 3D intensity surface;
+- automatic three theoretical projections;
 - optional toy Monte Carlo Dalitz plot and weighted histograms;
 - toy export in CSV.
 
 ## Physics conventions
 
-The detailed definitions used for breakup momenta, Blatt-Weisskopf barrier factors, Zemach angular terms, the mass-dependent width, and the relativistic Breit-Wigner are documented in [`docs/PHYSICS_CONVENTIONS.md`](docs/PHYSICS_CONVENTIONS.md).
+The detailed definitions used for breakup momenta, Blatt-Weisskopf barrier factors, Zemach angular terms, the mass-dependent width, subthreshold resonance poles, and the relativistic Breit-Wigner are documented in [`docs/PHYSICS_CONVENTIONS.md`](docs/PHYSICS_CONVENTIONS.md).
 
-The current implementation adopts the spin-0 Dalitz/Zemach convention in which the resonance-daughter momentum `q` and bachelor momentum `p` are evaluated in the resonance rest frame. The physical threshold is explicitly enforced when calculating breakup momenta.
+The current implementation adopts the spin-0 Dalitz/Zemach convention in which the resonance-daughter momentum `q` and bachelor momentum `p` are evaluated in the resonance rest frame. The physical threshold is explicitly enforced for event-by-event breakup momenta. Resonance pole masses below threshold are allowed and use the real reference-momentum prescription documented in `docs/PHYSICS_CONVENTIONS.md`.
+
+## Dalitz visualization
+
+The theoretical Dalitz plot can be switched between two visualization modes without recalculating a different physics model:
+
+- **2D heatmap:** `s12` on the x-axis, `s13` on the y-axis, and color representing `|A|^2`;
+- **3D surface:** `s12` on the x-axis, `s13` on the y-axis, and `|A|^2` on the z-axis.
+
+Both views use the same theoretical intensity grid returned by the backend. The selector is available in the **Theoretical model** controls next to the grid resolution.
 
 ## Tested environment
 
@@ -244,7 +255,7 @@ Phase-space weights, complex amplitudes, total weights, event IDs, and metadata 
 
 ## Resonance parameter editing
 
-The resonance editor accepts a numerical phase in degrees and allows the user to override the particle-database defaults for pole mass, pole width, spin/orbital L, resonance radius, and mother radius.
+The resonance editor accepts a numerical phase in degrees and allows the user to override the particle-database defaults for pole mass, pole width, spin/orbital L, resonance radius, and mother radius. Pole masses below the daughter threshold are permitted.
 
 ## Fit fractions
 
