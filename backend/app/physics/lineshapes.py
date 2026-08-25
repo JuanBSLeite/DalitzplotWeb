@@ -19,14 +19,12 @@ def kallen(x: np.ndarray | float, y: float, z: float) -> np.ndarray:
 
 
 def breakup_momentum(s: np.ndarray | float, mass_a: float, mass_b: float) -> np.ndarray:
-    """Two-body breakup momentum in the ab rest frame.
+    """Physical two-body breakup momentum in the ab rest frame.
 
     q(s) = sqrt(lambda(s, m_a^2, m_b^2)) / (2 sqrt(s)).
 
-    The function is defined as zero below the physical threshold
-    sqrt(s) < m_a + m_b.  Checking the threshold explicitly is important
-    for unequal daughter masses, because lambda can become positive again
-    below the pseudo-threshold |m_a-m_b|.
+    The physical momentum is set to zero below threshold. This avoids the
+    pseudo-threshold branch that appears for unequal daughter masses.
     """
 
     s_arr = np.asarray(s, dtype=np.float64)
@@ -36,6 +34,33 @@ def breakup_momentum(s: np.ndarray | float, mass_a: float, mass_b: float) -> np.
     momentum = np.zeros_like(root_s)
     valid = (root_s >= threshold) & (root_s > 0.0) & (lam >= 0.0)
     momentum[valid] = np.sqrt(np.clip(lam[valid], 0.0, None)) / (2.0 * root_s[valid])
+    return momentum
+
+
+def breakup_momentum_reference(
+    s: np.ndarray | float,
+    mass_a: float,
+    mass_b: float,
+) -> np.ndarray:
+    """Positive momentum scale used to normalize subthreshold poles.
+
+    For a pole mass outside the physical two-body region the physical q0 is
+    not real. To keep the real Blatt-Weisskopf/running-width convention used
+    by this project, the reference scale is defined from the magnitude of the
+    analytically continued Källén function:
+
+        |q_ref| = sqrt(|lambda(s,m_a^2,m_b^2)|) / (2 sqrt(s)).
+
+    This quantity is used only as the normalization scale q0. Event-by-event
+    q(s) remains the physical breakup momentum and is zero below threshold.
+    """
+
+    s_arr = np.asarray(s, dtype=np.float64)
+    root_s = np.sqrt(np.clip(s_arr, 0.0, None))
+    lam = kallen(s_arr, mass_a * mass_a, mass_b * mass_b)
+    momentum = np.zeros_like(root_s)
+    valid = root_s > 0.0
+    momentum[valid] = np.sqrt(np.abs(lam[valid])) / (2.0 * root_s[valid])
     return momentum
 
 
@@ -70,7 +95,7 @@ def blatt_weisskopf(orbital_l: int, z: np.ndarray | float) -> np.ndarray:
     """Unnormalised Blatt-Weisskopf barrier factor B_L(z).
 
     The variable used here is z=(q r)^2, with q in GeV and r in GeV^-1,
-    so z is dimensionless.  The normalized factor is formed by taking the
+    so z is dimensionless. The normalized factor is formed by taking the
     ratio B_L(z)/B_L(z0).
     """
 
@@ -110,9 +135,13 @@ class DynamicRelativisticBreitWigner(LineShape):
 
         Gamma(s) = Gamma0 (q/q0)^(2L+1) (m0/sqrt(s)) F_R(q,q0)^2.
 
-    q is the momentum of a resonance daughter in the resonance rest frame.
-    p is the bachelor momentum in that same resonance rest frame, matching
-    the standard spin-0 Dalitz/Zemach convention used by this project.
+    q is the physical momentum of a resonance daughter in the resonance rest
+    frame. p is the bachelor momentum in that same resonance rest frame.
+
+    Pole masses below the daughter threshold are allowed. In that case q0 is
+    defined by breakup_momentum_reference(), i.e. by the magnitude of the
+    analytically continued Källén function. The physical event momentum q(s)
+    is still zero whenever the daughter channel is closed.
     """
 
     def __init__(
@@ -137,13 +166,22 @@ class DynamicRelativisticBreitWigner(LineShape):
         self.mother_radius = mother_radius
 
         pole_s = pole_mass * pole_mass
-        self.q0 = float(
+        physical_q0 = float(
             breakup_momentum(
                 pole_s,
                 daughter_masses[0],
                 daughter_masses[1],
             )
         )
+        reference_q0 = float(
+            breakup_momentum_reference(
+                pole_s,
+                daughter_masses[0],
+                daughter_masses[1],
+            )
+        )
+        self.subthreshold_pole = physical_q0 <= 0.0
+        self.q0 = physical_q0 if physical_q0 > 0.0 else reference_q0
         self.p0 = float(
             bachelor_momentum_in_resonance_rest(
                 pole_s,
@@ -152,8 +190,9 @@ class DynamicRelativisticBreitWigner(LineShape):
             )
         )
 
-        if self.q0 <= 0.0:
-            raise ValueError("The resonance pole lies at or below the daughter threshold")
+        # Exactly at threshold lambda=0 and no finite q0 normalization exists.
+        # The pole is still accepted, using a constant-width fallback.
+        self.constant_width_fallback = self.q0 <= 1e-15
 
     def evaluate(self, s: np.ndarray) -> np.ndarray:
         s_arr = np.asarray(s, dtype=np.float64)
@@ -165,10 +204,11 @@ class DynamicRelativisticBreitWigner(LineShape):
             self.bachelor_mass,
         )
 
+        q0_for_barrier = 0.0 if self.constant_width_fallback else self.q0
         resonance_barrier = normalised_blatt_weisskopf(
             self.orbital_l,
             q,
-            self.q0,
+            q0_for_barrier,
             self.resonance_radius,
         )
         mother_barrier = normalised_blatt_weisskopf(
@@ -178,14 +218,17 @@ class DynamicRelativisticBreitWigner(LineShape):
             self.mother_radius,
         )
 
-        width = np.zeros_like(root_s)
-        open_channel = q > 0.0
-        width[open_channel] = (
-            self.pole_width
-            * (q[open_channel] / self.q0) ** (2 * self.orbital_l + 1)
-            * (self.pole_mass / root_s[open_channel])
-            * resonance_barrier[open_channel] ** 2
-        )
+        if self.constant_width_fallback:
+            width = np.full_like(root_s, self.pole_width)
+        else:
+            width = np.zeros_like(root_s)
+            open_channel = q > 0.0
+            width[open_channel] = (
+                self.pole_width
+                * (q[open_channel] / self.q0) ** (2 * self.orbital_l + 1)
+                * (self.pole_mass / root_s[open_channel])
+                * resonance_barrier[open_channel] ** 2
+            )
 
         denominator = (
             self.pole_mass * self.pole_mass
