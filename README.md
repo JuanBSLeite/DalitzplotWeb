@@ -7,32 +7,61 @@ Interactive three-body amplitude-model playground.
 - particle masses and properties from `particle`;
 - automatic decay validation and resonance suggestions with `qrules`;
 - three-body toy generation with `phasespace`;
-- dynamic relativistic Breit-Wigner;
+- relativistic Breit-Wigner (`RBW`) as the single supported lineshape;
 - mass-dependent width;
 - Blatt-Weisskopf factors at the mother and resonance vertices;
-- Zemach angular terms for spin 0, 1 and 2;
-- support for resonance pole masses below the daughter threshold;
-- automatic identical-particle symmetrization;
-- normalization of each complete symmetrized amplitude contribution;
+- Zemach angular terms for `L = 0, 1, 2`;
+- support for virtual resonance pole masses outside the accessible daughter-pair mass interval;
+- automatic identical-particle symmetrization and Bose-symmetry checks;
+- deterministic cached normalization of each complete symmetrized amplitude contribution;
 - selectable theoretical Dalitz visualization as a 2D heatmap or 3D intensity surface;
 - automatic three theoretical projections;
-- optional toy Monte Carlo Dalitz plot and weighted histograms;
+- fit fractions evaluated on the fixed integration grid;
+- optional weighted toy Monte Carlo Dalitz plot and histograms;
 - toy export in CSV.
 
-## Physics conventions
+## Physics scope and conventions
 
-The detailed definitions used for breakup momenta, Blatt-Weisskopf barrier factors, Zemach angular terms, the mass-dependent width, subthreshold resonance poles, and the relativistic Breit-Wigner are documented in [`docs/PHYSICS_CONVENTIONS.md`](docs/PHYSICS_CONVENTIONS.md).
+The detailed physics definitions are documented in [`docs/PHYSICS_CONVENTIONS.md`](docs/PHYSICS_CONVENTIONS.md).
 
-The current implementation adopts the spin-0 Dalitz/Zemach convention in which the resonance-daughter momentum `q` and bachelor momentum `p` are evaluated in the resonance rest frame. The physical threshold is explicitly enforced for event-by-event breakup momenta. Resonance pole masses below threshold are allowed and use the real reference-momentum prescription documented in `docs/PHYSICS_CONVENTIONS.md`.
+The current amplitude engine is intentionally restricted to
+
+```text
+spin-0 mother -> spin-0 + spin-0 + spin-0
+```
+
+using a relativistic Breit-Wigner isobar model and Zemach angular terms. Channels containing a nonzero-spin mother or final-state particle are rejected by the amplitude layer rather than being evaluated with an inappropriate spin formalism.
+
+Only **RBW** is supported at present. Other lineshapes are intentionally not exposed by the API yet.
+
+The resonance-daughter momentum `q` and bachelor momentum `p` are evaluated in the resonance rest frame. Event-by-event breakup momentum is explicitly set to zero below the physical daughter threshold.
+
+### Virtual resonances
+
+A pole mass can lie below the daughter threshold or above the maximum daughter-pair mass accessible in the decay. In this case the nominal pole mass remains in the Breit-Wigner denominator, while the reference momenta `q0` and `p0` are evaluated at an effective reference mass smoothly mapped into the physical daughter-pair interval. The exact prescription is given in `docs/PHYSICS_CONVENTIONS.md`.
+
+### Deterministic amplitude normalization
+
+Component normalization is no longer estimated from the theoretical display grid or from a generated toy sample. A fixed `260 x 260` Dalitz integration grid is used for physics integrals, and the resulting component normalizations are cached.
+
+Therefore changing only any of the following does **not** redefine the amplitude basis:
+
+- theoretical-plot display resolution;
+- toy event count;
+- toy seed;
+- amplitude magnitude;
+- amplitude phase.
+
+Fit fractions use the same deterministic integration grid.
 
 ## Dalitz visualization
 
-The theoretical Dalitz plot can be switched between two visualization modes without recalculating a different physics model:
+The theoretical Dalitz plot can be switched between two visualization modes without changing the physics model:
 
-- **2D heatmap:** `s12` on the x-axis, `s13` on the y-axis, and color representing `|A|^2`;
-- **3D surface:** `s12` on the x-axis, `s13` on the y-axis, and `|A|^2` on the z-axis.
+- **2D heatmap:** `s12` on the x-axis, `s13` on the y-axis, color = `|A|^2`;
+- **3D surface:** `s12` on the x-axis, `s13` on the y-axis, `|A|^2` on the z-axis.
 
-Both views use the same theoretical intensity grid returned by the backend. The selector is available in the **Theoretical model** controls next to the grid resolution.
+Both views use the same theoretical intensity grid returned by the backend.
 
 ## Tested environment
 
@@ -241,7 +270,15 @@ http://SERVER_IP:8016/
 - `POST /api/v1/toy/generate`
 - `POST /api/v1/toy/export/csv`
 
-## Toy export columns
+## Toy Monte Carlo and export
+
+The generated toy is a **weighted phase-space sample**, with
+
+```text
+w_total = w_phase_space |A|^2.
+```
+
+It is not currently an unweighted accept-reject sample.
 
 The CSV export contains only:
 
@@ -255,7 +292,9 @@ Phase-space weights, complex amplitudes, total weights, event IDs, and metadata 
 
 ## Resonance parameter editing
 
-The resonance editor accepts a numerical phase in degrees and allows the user to override the particle-database defaults for pole mass, pole width, spin/orbital L, resonance radius, and mother radius. Pole masses below the daughter threshold are permitted.
+The resonance editor accepts a numerical phase and allows the user to override the particle-database defaults for pole mass, pole width, resonance radius, and mother radius. Spin/orbital `L` is fixed by the selected resonance and is currently restricted to `0`, `1`, or `2`.
+
+Pole masses outside the accessible daughter-pair interval are permitted and treated as virtual contributions using the documented effective-reference-mass prescription.
 
 ## Fit fractions
 
@@ -263,17 +302,17 @@ The theoretical-model response includes the fit fraction of every selected ampli
 
 `FF_r = integral |A_r|^2 dPhi3 / integral |sum_k A_k|^2 dPhi3`.
 
-They are displayed in **Selected amplitudes** and update automatically. Their sum can differ from 100% because interference terms are present only in the total denominator.
+Fit fractions are calculated on the fixed deterministic integration grid, not on the display grid. Their sum can differ from 100% because interference terms are present only in the total denominator.
 
 ## Import and export amplitude models
 
 The header includes **Export model** and **Import model** actions.
 
 - Export creates a versioned JSON document (`schema_version: 1.0`).
-- Import validates the JSON with the backend, rechecks the decay with `qrules`, and restores the channel, amplitudes, dynamic-RBW parameters, plot resolution, toy event count, and seed.
-- Imported models automatically rebuild the theoretical plots, component normalizations, and fit fractions.
+- Import validates the JSON with the backend, rechecks the decay with `qrules`, and restores the channel, amplitudes, RBW parameters, plot resolution, toy event count, and seed.
+- Imported models automatically rebuild the theoretical plots, cached component normalizations, and fit fractions.
 
-Model files store masses and widths in MeV for readability, while the numerical backend continues to use GeV internally.
+Model files store masses and widths in MeV for readability, while the numerical backend uses GeV internally.
 
 ## Non-resonant amplitude
 
