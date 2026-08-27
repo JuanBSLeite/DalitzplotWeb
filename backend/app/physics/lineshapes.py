@@ -37,31 +37,40 @@ def breakup_momentum(s: np.ndarray | float, mass_a: float, mass_b: float) -> np.
     return momentum
 
 
-def breakup_momentum_reference(
-    s: np.ndarray | float,
-    mass_a: float,
-    mass_b: float,
-) -> np.ndarray:
-    """Positive momentum scale used to normalize subthreshold poles.
+def virtual_reference_mass(
+    pole_mass: float,
+    minimum_mass: float,
+    maximum_mass: float,
+) -> float:
+    """Return the effective mass used for a virtual resonance reference point.
 
-    For a pole mass outside the physical two-body region the physical q0 is
-    not real. To keep the real Blatt-Weisskopf/running-width convention used
-    by this project, the reference scale is defined from the magnitude of the
-    analytically continued Källén function:
+    If ``pole_mass`` lies inside the kinematically accessible two-body mass
+    interval, it is returned unchanged. Otherwise the pole is smoothly mapped
+    inside the interval with the commonly used Dalitz-fit prescription
 
-        |q_ref| = sqrt(|lambda(s,m_a^2,m_b^2)|) / (2 sqrt(s)).
+        m_eff = m_min + (m_max-m_min)/2 *
+                [1 + tanh((m0 - (m_min+m_max)/2)/(m_max-m_min))].
 
-    This quantity is used only as the normalization scale q0. Event-by-event
-    q(s) remains the physical breakup momentum and is zero below threshold.
+    The true pole mass remains in the Breit-Wigner denominator. ``m_eff`` is
+    used only to define the reference momenta of barrier factors and the
+    mass-dependent width for a virtual contribution.
     """
 
-    s_arr = np.asarray(s, dtype=np.float64)
-    root_s = np.sqrt(np.clip(s_arr, 0.0, None))
-    lam = kallen(s_arr, mass_a * mass_a, mass_b * mass_b)
-    momentum = np.zeros_like(root_s)
-    valid = root_s > 0.0
-    momentum[valid] = np.sqrt(np.abs(lam[valid])) / (2.0 * root_s[valid])
-    return momentum
+    if maximum_mass <= minimum_mass:
+        raise ValueError("Virtual-resonance mass interval must have positive width")
+    if minimum_mass <= pole_mass <= maximum_mass:
+        return pole_mass
+
+    span = maximum_mass - minimum_mass
+    midpoint = 0.5 * (minimum_mass + maximum_mass)
+    effective = minimum_mass + 0.5 * span * (
+        1.0 + np.tanh((pole_mass - midpoint) / span)
+    )
+
+    # Keep the reference point strictly inside the open physical interval so
+    # q0 and p0 remain finite even for very distant virtual poles.
+    epsilon = max(1e-12 * span, np.finfo(np.float64).eps * max(1.0, maximum_mass))
+    return float(np.clip(effective, minimum_mass + epsilon, maximum_mass - epsilon))
 
 
 def bachelor_momentum_in_resonance_rest(
@@ -76,9 +85,6 @@ def bachelor_momentum_in_resonance_rest(
     the R rest frame:
 
         p(s) = sqrt(lambda(M^2, s, m_b^2)) / (2 sqrt(s)).
-
-    This is the same p used by the Zemach angular term and by the mother
-    Blatt-Weisskopf factor in the convention adopted here.
     """
 
     s_arr = np.asarray(s, dtype=np.float64)
@@ -92,12 +98,7 @@ def bachelor_momentum_in_resonance_rest(
 
 
 def blatt_weisskopf(orbital_l: int, z: np.ndarray | float) -> np.ndarray:
-    """Unnormalised Blatt-Weisskopf barrier factor B_L(z).
-
-    The variable used here is z=(q r)^2, with q in GeV and r in GeV^-1,
-    so z is dimensionless. The normalized factor is formed by taking the
-    ratio B_L(z)/B_L(z0).
-    """
+    """Unnormalised Blatt-Weisskopf barrier factor B_L(z), z=(q r)^2."""
 
     z_arr = np.asarray(z, dtype=np.float64)
     if orbital_l == 0:
@@ -128,20 +129,15 @@ def normalised_blatt_weisskopf(
 class DynamicRelativisticBreitWigner(LineShape):
     """Relativistic Breit-Wigner with running width and barrier factors.
 
-    The convention implemented is
+    BW(s) = F_M(p,p0) F_R(q,q0)
+            / [m0^2 - s - i m0 Gamma(s)]
 
-        BW(s) = F_M(p,p0) F_R(q,q0)
-                / [m0^2 - s - i m0 Gamma(s)]
+    Gamma(s) = Gamma0 (q/q0)^(2L+1) (m0/sqrt(s)) F_R(q,q0)^2.
 
-        Gamma(s) = Gamma0 (q/q0)^(2L+1) (m0/sqrt(s)) F_R(q,q0)^2.
-
-    q is the physical momentum of a resonance daughter in the resonance rest
-    frame. p is the bachelor momentum in that same resonance rest frame.
-
-    Pole masses below the daughter threshold are allowed. In that case q0 is
-    defined by breakup_momentum_reference(), i.e. by the magnitude of the
-    analytically continued Källén function. The physical event momentum q(s)
-    is still zero whenever the daughter channel is closed.
+    For a virtual pole outside the accessible daughter-pair mass interval, the
+    true ``m0`` remains in the Breit-Wigner denominator while the reference
+    momenta q0 and p0 are calculated at ``m_eff`` from
+    :func:`virtual_reference_mass`.
     """
 
     def __init__(
@@ -165,34 +161,34 @@ class DynamicRelativisticBreitWigner(LineShape):
         self.resonance_radius = resonance_radius
         self.mother_radius = mother_radius
 
-        pole_s = pole_mass * pole_mass
-        physical_q0 = float(
+        minimum_mass = daughter_masses[0] + daughter_masses[1]
+        maximum_mass = mother_mass - bachelor_mass
+        self.reference_mass = virtual_reference_mass(
+            pole_mass,
+            minimum_mass,
+            maximum_mass,
+        )
+        self.virtual_pole = not (minimum_mass <= pole_mass <= maximum_mass)
+
+        reference_s = self.reference_mass * self.reference_mass
+        self.q0 = float(
             breakup_momentum(
-                pole_s,
+                reference_s,
                 daughter_masses[0],
                 daughter_masses[1],
             )
         )
-        reference_q0 = float(
-            breakup_momentum_reference(
-                pole_s,
-                daughter_masses[0],
-                daughter_masses[1],
-            )
-        )
-        self.subthreshold_pole = physical_q0 <= 0.0
-        self.q0 = physical_q0 if physical_q0 > 0.0 else reference_q0
         self.p0 = float(
             bachelor_momentum_in_resonance_rest(
-                pole_s,
+                reference_s,
                 mother_mass,
                 bachelor_mass,
             )
         )
-
-        # Exactly at threshold lambda=0 and no finite q0 normalization exists.
-        # The pole is still accepted, using a constant-width fallback.
-        self.constant_width_fallback = self.q0 <= 1e-15
+        if self.q0 <= 0.0:
+            raise ValueError("Could not define a finite resonance reference momentum q0")
+        if self.p0 <= 0.0:
+            raise ValueError("Could not define a finite mother-vertex reference momentum p0")
 
     def evaluate(self, s: np.ndarray) -> np.ndarray:
         s_arr = np.asarray(s, dtype=np.float64)
@@ -204,11 +200,10 @@ class DynamicRelativisticBreitWigner(LineShape):
             self.bachelor_mass,
         )
 
-        q0_for_barrier = 0.0 if self.constant_width_fallback else self.q0
         resonance_barrier = normalised_blatt_weisskopf(
             self.orbital_l,
             q,
-            q0_for_barrier,
+            self.q0,
             self.resonance_radius,
         )
         mother_barrier = normalised_blatt_weisskopf(
@@ -218,17 +213,14 @@ class DynamicRelativisticBreitWigner(LineShape):
             self.mother_radius,
         )
 
-        if self.constant_width_fallback:
-            width = np.full_like(root_s, self.pole_width)
-        else:
-            width = np.zeros_like(root_s)
-            open_channel = q > 0.0
-            width[open_channel] = (
-                self.pole_width
-                * (q[open_channel] / self.q0) ** (2 * self.orbital_l + 1)
-                * (self.pole_mass / root_s[open_channel])
-                * resonance_barrier[open_channel] ** 2
-            )
+        width = np.zeros_like(root_s)
+        open_channel = q > 0.0
+        width[open_channel] = (
+            self.pole_width
+            * (q[open_channel] / self.q0) ** (2 * self.orbital_l + 1)
+            * (self.pole_mass / root_s[open_channel])
+            * resonance_barrier[open_channel] ** 2
+        )
 
         denominator = (
             self.pole_mass * self.pole_mass
