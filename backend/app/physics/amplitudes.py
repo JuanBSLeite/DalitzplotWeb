@@ -49,18 +49,12 @@ def _zemach_angular_term(
 ) -> np.ndarray:
     """Return Zemach angular factors for spin 0, 1, or 2.
 
-    The project uses the standard spin-0 parent / spin-0 daughters Zemach
-    convention, with both vectors evaluated in the resonance rest frame:
+    The implementation is valid for a spin-0 parent and spin-0 final-state
+    particles. Both vectors are evaluated in the resonance rest frame:
 
         Z_0 = 1
         Z_1 = -2 p.q
         Z_2 = (4/3) [3 (p.q)^2 - |p|^2 |q|^2]
-
-    Here q is the momentum of the first listed resonance daughter and p is
-    the bachelor momentum.  Exchanging which resonance daughter defines q
-    flips Z_1 but leaves Z_0 and Z_2 unchanged; that sign is part of the
-    chosen amplitude convention and must be kept consistent when defining
-    decay chains and phases.
     """
 
     if spin not in (0, 1, 2):
@@ -83,15 +77,11 @@ def _zemach_angular_term(
 def _identical_particle_permutations(
     particle_ids: tuple[int, int, int],
 ) -> tuple[tuple[int, int, int], ...]:
-    """Return permutations that exchange only physically identical daughters.
-
-    A permutation maps an original daughter index to an event daughter index.
-    Distinct PDG IDs are never exchanged.
-    """
+    """Return permutations that exchange only physically identical daughters."""
 
     groups: list[tuple[int, ...]] = []
     seen: set[int] = set()
-    for index, particle_id in enumerate(particle_ids):
+    for particle_id in particle_ids:
         if particle_id in seen:
             continue
         group = tuple(i for i, value in enumerate(particle_ids) if value == particle_id)
@@ -113,12 +103,7 @@ def _mapped_decay_chains(
     ordered_pair: tuple[int, int],
     particle_ids: tuple[int, int, int],
 ) -> tuple[tuple[int, int, int], ...]:
-    """Map one isobar chain over all distinct identical-particle assignments.
-
-    Chains that differ only by exchanging the two daughters *inside the same
-    resonance* are counted once. This avoids double-counting an identical pair,
-    while still adding the physically distinct bachelor assignments.
-    """
+    """Map one isobar chain over all distinct identical-particle assignments."""
 
     i0, j0 = ordered_pair[0] - 1, ordered_pair[1] - 1
     if i0 == j0 or i0 not in range(3) or j0 not in range(3):
@@ -134,7 +119,7 @@ def _mapped_decay_chains(
 
 
 class AmplitudeModel:
-    """Coherent three-body isobar model with automatic Bose symmetrization."""
+    """Coherent spin-0 -> spin-0 spin-0 spin-0 isobar model."""
 
     def __init__(
         self,
@@ -166,6 +151,23 @@ class AmplitudeModel:
         invariants = {(0, 1): s12, (0, 2): s13, (1, 2): s23}
         return invariants[key]
 
+    @staticmethod
+    def _component_key(index: int, config: ResonanceConfig) -> str:
+        if config.component_type == "nonresonant":
+            return f"{index}:{config.name}:NR"
+        return f"{index}:{config.name}:{config.pair[0]}{config.pair[1]}"
+
+    def _validate_resonance_symmetry(self, config: ResonanceConfig, chain: tuple[int, int, int]) -> None:
+        """Enforce Bose symmetry for an identical spin-0 pair."""
+
+        i, j, _ = chain
+        if self.daughter_ids[i] == self.daughter_ids[j] and config.spin % 2 != 0:
+            raise ValueError(
+                f"Odd orbital angular momentum L={config.spin} is forbidden for the "
+                "identical spin-0 resonance daughters in component "
+                f"{config.name!r}."
+            )
+
     def _evaluate_chain(
         self,
         config: ResonanceConfig,
@@ -176,11 +178,11 @@ class AmplitudeModel:
         s13: np.ndarray,
         s23: np.ndarray,
     ) -> np.ndarray:
+        self._validate_resonance_symmetry(config, chain)
         i, j, bachelor_index = chain
         daughter_i = momenta[i]
-        daughter_j = momenta[j]
         bachelor = momenta[bachelor_index]
-        resonance_four_vector = daughter_i + daughter_j
+        resonance_four_vector = momenta[i] + momenta[j]
         invariant = self._invariant_for_pair((i, j), s12, s13, s23)
 
         lineshape = DynamicRelativisticBreitWigner(
@@ -193,14 +195,13 @@ class AmplitudeModel:
             resonance_radius=config.resonance_radius,
             mother_radius=config.mother_radius,
         )
-        line_value = lineshape.evaluate(invariant)
         angular = _zemach_angular_term(
             config.spin,
             daughter_i,
             bachelor,
             resonance_four_vector,
         )
-        return line_value * angular
+        return lineshape.evaluate(invariant) * angular
 
     def evaluate(
         self,
@@ -211,10 +212,18 @@ class AmplitudeModel:
         s23: np.ndarray,
         phase_space_weight: np.ndarray | None = None,
         normalize_components: bool = True,
+        normalization_integrals: dict[str, float] | None = None,
     ) -> AmplitudeEvaluation:
+        """Evaluate the coherent model.
+
+        ``normalization_integrals`` can be supplied from a fixed integration
+        sample. When present, those deterministic values are used instead of
+        estimating component normalizations from the points being evaluated.
+        """
+
         total = np.zeros_like(s12, dtype=np.complex128)
         components: dict[str, np.ndarray] = {}
-        normalization_integrals: dict[str, float] = {}
+        used_normalizations: dict[str, float] = {}
         max_chain_count = 1
 
         if phase_space_weight is not None and phase_space_weight.shape != s12.shape:
@@ -222,16 +231,13 @@ class AmplitudeModel:
 
         for index, config in enumerate(self.resonances):
             if config.component_type == "nonresonant":
-                # Constant scalar amplitude over the physical three-body phase space.
-                # It is normalized with the same convention as every other component.
                 symmetrized_component = np.ones_like(s12, dtype=np.complex128)
                 chains = ((0, 1, 2),)
-                key = f"{index}:{config.name}:NR"
             else:
-                if config.lineshape != "RBW":
-                    raise ValueError(f"Lineshape {config.lineshape} is not implemented yet; use RBW")
                 if config.mass <= 0 or config.width <= 0:
                     raise ValueError("Resonance mass and width must be positive")
+                if config.spin not in (0, 1, 2):
+                    raise ValueError("RBW/Zemach model currently supports L=0, 1, and 2 only")
 
                 if self.symmetrize:
                     chains = _mapped_decay_chains(config.pair, self.daughter_ids)
@@ -252,18 +258,22 @@ class AmplitudeModel:
                         s23=s23,
                     )
 
-                key = f"{index}:{config.name}:{config.pair[0]}{config.pair[1]}"
+            key = self._component_key(index, config)
             if normalize_components:
-                if phase_space_weight is None:
-                    raise ValueError(
-                        "phase_space_weight is required when normalize_components is enabled"
+                if normalization_integrals is not None:
+                    if key not in normalization_integrals:
+                        raise ValueError(f"Missing cached normalization for component {key}")
+                    norm_integral = float(normalization_integrals[key])
+                else:
+                    if phase_space_weight is None:
+                        raise ValueError(
+                            "phase_space_weight is required when component normalization "
+                            "is estimated from the evaluation points"
+                        )
+                    norm_integral = float(
+                        np.mean(phase_space_weight * np.abs(symmetrized_component) ** 2)
                     )
-                # Monte Carlo estimate of the full three-body phase-space integral.
-                # The component is already symmetrized and contains the lineshape,
-                # dynamic width, both barrier factors, and the angular term.
-                norm_integral = float(
-                    np.mean(phase_space_weight * np.abs(symmetrized_component) ** 2)
-                )
+
                 if not np.isfinite(norm_integral) or norm_integral <= 0.0:
                     raise ValueError(
                         f"Could not normalize amplitude component {config.name}: "
@@ -274,9 +284,8 @@ class AmplitudeModel:
                 norm_integral = 1.0
                 basis_component = symmetrized_component
 
-            normalization_integrals[key] = norm_integral
-            coefficient = self._coefficient(config.magnitude, config.phase_deg)
-            component = coefficient * basis_component
+            used_normalizations[key] = norm_integral
+            component = self._coefficient(config.magnitude, config.phase_deg) * basis_component
             components[key] = component
             total += component
 
@@ -288,7 +297,7 @@ class AmplitudeModel:
             amplitude=total,
             amplitude_squared=np.abs(total) ** 2,
             component_amplitudes=components,
-            component_normalization_integrals=normalization_integrals,
+            component_normalization_integrals=used_normalizations,
             symmetrized=self.symmetrize and identical_present,
             symmetry_term_count=max_chain_count if identical_present else 1,
         )
