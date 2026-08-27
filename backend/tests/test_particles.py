@@ -4,6 +4,7 @@ import pytest
 
 from app.services.particles import (
     ParticleLookupError,
+    ResolvedParticle,
     resolve_decay,
     resolve_particle,
     validate_spinless_dalitz_scope,
@@ -27,7 +28,12 @@ def test_resolve_three_body_decay() -> None:
 
 
 def test_spinless_scope_rejects_nonzero_spin_final_state() -> None:
-    mother, daughters = resolve_decay("D0", ("K-", "mu+", "nu(mu)"))
+    mother = ResolvedParticle("B+", 521, 5.279, 1.0, 0.0, None)
+    daughters = (
+        ResolvedParticle("p", 2212, 0.938, 1.0, 0.5, None),
+        ResolvedParticle("p~", -2212, 0.938, -1.0, 0.5, None),
+        ResolvedParticle("K+", 321, 0.494, 1.0, 0.0, None),
+    )
     with pytest.raises(ParticleLookupError, match="spin-0 final-state"):
         validate_spinless_dalitz_scope(mother, daughters)
 
