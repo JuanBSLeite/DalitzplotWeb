@@ -5,8 +5,8 @@ from app.physics.lineshapes import (
     bachelor_momentum_in_resonance_rest,
     blatt_weisskopf,
     breakup_momentum,
-    breakup_momentum_reference,
     normalised_blatt_weisskopf,
+    virtual_reference_mass,
 )
 
 
@@ -16,19 +16,19 @@ def test_breakup_momentum_vanishes_below_threshold():
 
 
 def test_breakup_momentum_vanishes_below_unequal_mass_threshold():
-    # lambda is positive again below the pseudo-threshold |m1-m2|, but the
-    # physical two-body momentum must still be zero below m1+m2.
     q = breakup_momentum(np.array([0.01]), 0.493677, 0.139570)
     assert q[0] == 0.0
 
 
-def test_subthreshold_reference_momentum_is_positive():
-    pole_mass = 0.25
-    mass = 0.13957
-    q_physical = breakup_momentum(np.array([pole_mass**2]), mass, mass)[0]
-    q_reference = breakup_momentum_reference(np.array([pole_mass**2]), mass, mass)[0]
-    assert q_physical == 0.0
-    assert q_reference > 0.0
+def test_virtual_reference_mass_maps_subthreshold_pole_into_physical_region():
+    minimum = 2.0 * 0.13957
+    maximum = 1.86484 - 0.13498
+    effective = virtual_reference_mass(0.25, minimum, maximum)
+    assert minimum < effective < maximum
+
+
+def test_virtual_reference_mass_leaves_physical_pole_unchanged():
+    assert np.isclose(virtual_reference_mass(0.77526, 0.27914, 1.72986), 0.77526)
 
 
 def test_barrier_factor_is_normalised_at_reference_momentum():
@@ -72,7 +72,7 @@ def test_bachelor_momentum_in_resonance_rest_matches_formula():
     assert np.allclose(p, expected)
 
 
-def test_dynamic_rbw_at_pole_has_pole_width_and_unit_barriers():
+def test_dynamic_rbw_at_physical_pole_has_pole_width_and_unit_barriers():
     pole_mass = 0.77526
     pole_width = 0.1491
     rbw = DynamicRelativisticBreitWigner(
@@ -83,15 +83,14 @@ def test_dynamic_rbw_at_pole_has_pole_width_and_unit_barriers():
         daughter_masses=(0.13957, 0.13957),
         bachelor_mass=0.13498,
     )
+    assert not rbw.virtual_pole
+    assert np.isclose(rbw.reference_mass, pole_mass)
     value = rbw.evaluate(np.array([pole_mass**2]))[0]
-
-    # At s=m0^2 both normalized barrier factors are one and Gamma(s)=Gamma0,
-    # so BW(m0^2)=i/(m0 Gamma0) for the denominator convention used here.
     expected = 1j / (pole_mass * pole_width)
     assert np.allclose(value, expected)
 
 
-def test_dynamic_rbw_accepts_subthreshold_pole():
+def test_dynamic_rbw_accepts_subthreshold_virtual_pole():
     rbw = DynamicRelativisticBreitWigner(
         pole_mass=0.25,
         pole_width=0.10,
@@ -100,41 +99,27 @@ def test_dynamic_rbw_accepts_subthreshold_pole():
         daughter_masses=(0.13957, 0.13957),
         bachelor_mass=0.13498,
     )
-    assert rbw.subthreshold_pole
+    assert rbw.virtual_pole
+    assert rbw.reference_mass > 2.0 * 0.13957
     assert rbw.q0 > 0.0
+    assert rbw.p0 > 0.0
 
-    # Evaluate in the physical pi-pi region. The result must remain finite.
     value = rbw.evaluate(np.array([0.40**2]))
     assert np.isfinite(value.real).all()
     assert np.isfinite(value.imag).all()
 
 
-def test_dynamic_rbw_accepts_pole_exactly_at_threshold():
-    mass = 0.13957
+def test_dynamic_rbw_accepts_pole_above_accessible_pair_region():
     rbw = DynamicRelativisticBreitWigner(
-        pole_mass=2.0 * mass,
-        pole_width=0.10,
+        pole_mass=2.10,
+        pole_width=0.20,
         orbital_l=0,
-        mother_mass=1.86484,
-        daughter_masses=(mass, mass),
-        bachelor_mass=0.13498,
-    )
-    assert rbw.constant_width_fallback
-    value = rbw.evaluate(np.array([0.40**2]))
-    assert np.isfinite(value.real).all()
-    assert np.isfinite(value.imag).all()
-
-
-def test_dynamic_rbw_is_finite_near_pole():
-    rbw = DynamicRelativisticBreitWigner(
-        pole_mass=0.77526,
-        pole_width=0.1491,
-        orbital_l=1,
         mother_mass=1.86484,
         daughter_masses=(0.13957, 0.13957),
         bachelor_mass=0.13498,
     )
-    value = rbw.evaluate(np.array([0.77526**2]))
+    assert rbw.virtual_pole
+    assert rbw.reference_mass < 1.86484 - 0.13498
+    value = rbw.evaluate(np.array([1.20**2]))
     assert np.isfinite(value.real).all()
     assert np.isfinite(value.imag).all()
-    assert np.abs(value[0]) > 0.0
