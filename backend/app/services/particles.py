@@ -34,7 +34,7 @@ def resolve_particle(name: str) -> ResolvedParticle:
 
     try:
         particle = Particle.from_name(clean_name)
-    except Exception as exc:  # particle raises different lookup exceptions
+    except Exception as exc:
         raise ParticleLookupError(f"Unknown particle {clean_name!r}") from exc
 
     if particle.mass is None:
@@ -69,3 +69,30 @@ def resolve_decay(
         )
 
     return mother, daughters  # type: ignore[return-value]
+
+
+def validate_spinless_dalitz_scope(
+    mother: ResolvedParticle,
+    daughters: tuple[ResolvedParticle, ResolvedParticle, ResolvedParticle],
+) -> None:
+    """Enforce the scope of the currently implemented Zemach formalism.
+
+    The present amplitude model is explicitly restricted to a spin-0 mother
+    decaying to three spin-0 daughters. Channels outside this scope require a
+    helicity/canonical formalism and are therefore rejected rather than being
+    evaluated with an incorrect spin model.
+    """
+
+    if mother.spin is None or abs(mother.spin) > 1e-12:
+        raise ParticleLookupError(
+            f"Amplitude model currently supports only spin-0 mothers; "
+            f"{mother.name} has J={mother.spin}."
+        )
+
+    non_scalar = [particle for particle in daughters if particle.spin is None or abs(particle.spin) > 1e-12]
+    if non_scalar:
+        details = ", ".join(f"{particle.name} (J={particle.spin})" for particle in non_scalar)
+        raise ParticleLookupError(
+            "Amplitude model currently supports only spin-0 final-state particles; "
+            f"unsupported: {details}."
+        )
