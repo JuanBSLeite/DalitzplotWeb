@@ -3,6 +3,7 @@ from __future__ import annotations
 import numpy as np
 
 from app.physics.amplitudes import AmplitudeModel
+from app.physics.normalization import component_normalizations
 from app.physics.phasespace_generator import PhaseSpaceGenerator
 from app.schemas import (
     ComponentNormalization,
@@ -11,7 +12,11 @@ from app.schemas import (
     PhaseSpaceGenerateRequest,
     PhaseSpaceGenerateResponse,
 )
-from app.services.particles import ResolvedParticle, resolve_decay
+from app.services.particles import (
+    ResolvedParticle,
+    resolve_decay,
+    validate_spinless_dalitz_scope,
+)
 
 
 def _to_particle_info(particle: ResolvedParticle) -> ParticleInfo:
@@ -32,10 +37,21 @@ def generate_weighted_sample(
 ) -> PhaseSpaceGenerateResponse:
     daughter_names = tuple(item.name for item in payload.daughters)
     mother, daughters = resolve_decay(payload.mother.name, daughter_names)
+    validate_spinless_dalitz_scope(mother, daughters)
+
+    daughter_masses = tuple(particle.mass_gev for particle in daughters)
+    daughter_ids = tuple(particle.pdgid for particle in daughters)
+    normalizations = component_normalizations(
+        payload.resonances,
+        mother_mass=mother.mass_gev,
+        daughter_masses=daughter_masses,
+        daughter_ids=daughter_ids,
+        symmetrize=payload.symmetrize,
+    ) if payload.normalize_components else None
 
     sample = PhaseSpaceGenerator().generate(
         mother_mass=mother.mass_gev,
-        daughter_masses=tuple(particle.mass_gev for particle in daughters),
+        daughter_masses=daughter_masses,
         daughter_names=("p1", "p2", "p3"),
         n_events=payload.n_events,
         seed=payload.seed,
@@ -44,16 +60,16 @@ def generate_weighted_sample(
     evaluation = AmplitudeModel(
         payload.resonances,
         mother_mass=mother.mass_gev,
-        daughter_masses=tuple(particle.mass_gev for particle in daughters),
-        daughter_ids=tuple(particle.pdgid for particle in daughters),
+        daughter_masses=daughter_masses,
+        daughter_ids=daughter_ids,
         symmetrize=payload.symmetrize,
     ).evaluate(
         momenta=sample.momenta,
         s12=sample.s12,
         s13=sample.s13,
         s23=sample.s23,
-        phase_space_weight=sample.phase_space_weight,
         normalize_components=payload.normalize_components,
+        normalization_integrals=normalizations,
     )
     amplitude_squared = evaluation.amplitude_squared.astype(np.float64)
     total_weight = sample.phase_space_weight * amplitude_squared
