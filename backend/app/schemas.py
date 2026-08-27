@@ -45,11 +45,11 @@ class ResonanceConfig(BaseModel):
     component_type: Literal["resonant", "nonresonant"] = "resonant"
     name: str
     pair: tuple[int, int]
-    spin: int = 0
-    mass: float
-    width: float
-    lineshape: Literal["RBW", "GS", "FLATTE"] = "RBW"
-    magnitude: float = 1.0
+    spin: int = Field(default=0, ge=0, le=2)
+    mass: float = Field(gt=0.0)
+    width: float = Field(gt=0.0)
+    lineshape: Literal["RBW"] = "RBW"
+    magnitude: float = Field(default=1.0, ge=0.0)
     phase_deg: float = 0.0
     resonance_radius: float = Field(default=1.5, gt=0.0)
     mother_radius: float = Field(default=5.0, gt=0.0)
@@ -132,8 +132,8 @@ class ModelAmplitudeDocument(BaseModel):
     name: str
     pdgid: int | None = None
     pair: Literal["12", "13", "23"]
-    lineshape: Literal["RBW", "GS", "FLATTE"] = "RBW"
-    spin: int
+    lineshape: Literal["RBW"] = "RBW"
+    spin: int = Field(ge=0, le=2)
     mass_mev: float = Field(gt=0.0)
     width_mev: float = Field(gt=0.0)
     magnitude: float = Field(ge=0.0)
