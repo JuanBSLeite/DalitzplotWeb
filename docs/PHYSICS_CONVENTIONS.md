@@ -4,104 +4,133 @@ This document records the amplitude conventions used by the Dalitz Plot Web Visu
 
 ## Scope
 
-The current implementation is intended for spin-0 three-body decays described with an isobar model,
+The current amplitude engine is intentionally restricted to
+
+```text
+spin-0 mother -> spin-0 daughter 1 + spin-0 daughter 2 + spin-0 daughter 3
+```
+
+with an isobar decomposition
 
 ```text
 M -> R c
 R -> a b
 ```
 
-with spin-0 final-state particles and resonance orbital angular momentum `L = 0, 1, 2`.
+and orbital angular momentum `L = 0, 1, 2`.
 
-A resonant component is evaluated schematically as
+Channels containing a nonzero-spin mother or final-state particle are rejected by the amplitude layer. Such channels require a helicity/canonical-spin formalism and are outside the current implementation.
+
+Only the relativistic Breit-Wigner (`RBW`) lineshape is supported at present.
+
+All masses and momenta are in GeV internally. Barrier radii are in GeV^-1.
+
+## Amplitude
+
+A resonant contribution is
 
 ```text
-A_r(s, angles) = c_r F_M(p) F_R(q) Z_L(p,q) BW(s)
+A_r(s) = c_r F_M(p,p0) F_R(q,q0) Z_L(p,q)
+         / [m0^2 - s - i m0 Gamma(s)].
 ```
 
-with the running-width dependence included in the Breit-Wigner denominator.
+The full amplitude is the coherent sum
 
-All masses and momenta used internally are in GeV. Barrier radii are in GeV^-1.
+```text
+A = sum_r A_r + A_NR.
+```
+
+The complex coefficient is
+
+```text
+c_r = magnitude * exp(i phase).
+```
 
 ## Källén function
-
-The implementation uses
 
 ```text
 lambda(x,y,z) = x^2 + y^2 + z^2 - 2xy - 2xz - 2yz.
 ```
 
-## Resonance-daughter breakup momentum q
+## Resonance-daughter momentum q
 
-For a resonance with invariant mass squared `s` decaying to particles `a` and `b`,
-
-```text
-q(s) = sqrt(lambda(s, m_a^2, m_b^2)) / (2 sqrt(s)).
-```
-
-`q` is evaluated in the resonance rest frame.
-
-Below the physical threshold
+For `R(s) -> a b`, the physical breakup momentum in the resonance rest frame is
 
 ```text
-sqrt(s) < m_a + m_b
+q(s) = sqrt(lambda(s,m_a^2,m_b^2)) / (2 sqrt(s)).
 ```
 
-this implementation sets the event-by-event physical momentum to `q = 0`.
-
-The explicit threshold condition is important for unequal masses because the Källén function becomes positive again below the pseudo-threshold `|m_a-m_b|`; that region is not the physical two-body decay region.
-
-For a pole inside the physical region,
+The code explicitly requires
 
 ```text
-q0 = q(m0^2).
+sqrt(s) >= m_a + m_b.
 ```
 
-### Subthreshold resonance poles
-
-The code allows a resonance pole mass `m0` below the daughter threshold `m_a + m_b`.
-
-In that case the physical pole momentum is not real, so the real running-width convention used by this project defines a positive reference scale
-
-```text
-q0 = sqrt(|lambda(m0^2,m_a^2,m_b^2)|) / (2 m0).
-```
-
-This `q0` is used only to normalize the real Blatt-Weisskopf factors and the running-width power law. The event-by-event momentum `q(s)` remains the physical breakup momentum and is still set to zero whenever the daughter channel is closed.
-
-If the pole lies exactly at threshold, `q0 = 0` and the usual `(q/q0)^(2L+1)` normalization is undefined. The implementation therefore accepts the pole and uses a constant-width fallback in that exceptional case.
-
-This is a pragmatic real-valued prescription for visualization and model exploration. It is not a replacement for a full complex analytic continuation or a coupled-channel lineshape when those are physically required.
+Below this threshold, the event-by-event physical momentum is set to zero. This explicit condition avoids incorrectly using the positive Källén branch below the pseudo-threshold for unequal masses.
 
 ## Bachelor momentum p
 
-The project adopts the standard Dalitz/Zemach convention in which the bachelor momentum is also evaluated in the resonance rest frame:
+The bachelor momentum is evaluated in the same resonance rest frame,
 
 ```text
-p(s) = sqrt(lambda(M^2, s, m_c^2)) / (2 sqrt(s)).
+p(s) = sqrt(lambda(M^2,s,m_c^2)) / (2 sqrt(s)).
 ```
 
-where `M` is the mother mass and `m_c` is the bachelor mass.
+This is the momentum convention used by the Zemach tensors and by the mother-vertex barrier factor in this project.
 
-At the resonance pole,
+## Physical and virtual resonance poles
+
+For a pole inside the kinematically accessible daughter-pair interval
 
 ```text
-p0 = p(m0^2).
+m_min = m_a + m_b
+m_max = M - m_c,
 ```
 
-This convention must not be mixed with alternative formalisms in which a production-barrier momentum is defined in the mother rest frame.
+the reference mass is simply
 
-## Blatt-Weisskopf barrier factors
+```text
+m_ref = m0.
+```
+
+The reference momenta are
+
+```text
+q0 = q(m_ref^2)
+p0 = p(m_ref^2).
+```
+
+A resonance pole may also lie outside the accessible interval. Such a contribution is treated as a virtual resonance: the true pole mass `m0` remains in the Breit-Wigner denominator, while only the reference momenta are evaluated at an effective mass mapped into the physical interval,
+
+```text
+m_ref = m_min + (m_max-m_min)/2 *
+        [1 + tanh((m0 - (m_min+m_max)/2)/(m_max-m_min))].
+```
+
+Thus
+
+```text
+q0 = q(m_ref^2)
+p0 = p(m_ref^2),
+```
+
+while the denominator remains
+
+```text
+m0^2 - s - i m0 Gamma(s).
+```
+
+This replaces the earlier `sqrt(|lambda|)` subthreshold prescription and avoids the former constant-width threshold fallback.
+
+## Blatt-Weisskopf factors
 
 The dimensionless variable is
 
 ```text
-z = (q r)^2,
+z = (q r)^2.
 ```
 
-with momentum in GeV and radius in GeV^-1.
-
-The unnormalised factors implemented are
+The unnormalised factors are
 
 ```text
 B_0(z) = 1
@@ -109,7 +138,7 @@ B_1(z) = 1 / sqrt(1 + z)
 B_2(z) = 1 / sqrt(z^2 + 3z + 9).
 ```
 
-The factors used in the amplitude are normalised at a reference momentum:
+The normalized factor is
 
 ```text
 F_L(q,q0,r) = B_L((q r)^2) / B_L((q0 r)^2).
@@ -121,25 +150,23 @@ Therefore
 F_L(q0,q0,r) = 1.
 ```
 
-Two factors are included for each resonance component:
+Each resonant contribution contains
 
 ```text
 F_R = F_L(q,q0,r_R)
 F_M = F_L(p,p0,r_M).
 ```
 
-The default radii are currently
+Current default radii are
 
 ```text
 r_R = 1.5 GeV^-1
 r_M = 5.0 GeV^-1.
 ```
 
-These are model parameters and can be edited in the frontend.
-
 ## Mass-dependent width
 
-For poles with a finite reference momentum `q0`, the relativistic Breit-Wigner uses
+The RBW running width is
 
 ```text
 Gamma(s) = Gamma0
@@ -148,41 +175,35 @@ Gamma(s) = Gamma0
            F_R(q,q0)^2.
 ```
 
-The width is set to zero where the physical resonance-daughter channel is closed.
+The width is zero where the physical daughter channel is closed.
 
-For a pole in the physical region,
+For an ordinary pole inside the physical interval,
 
 ```text
-Gamma(m0^2) = Gamma0,
+Gamma(m0^2) = Gamma0.
 ```
 
-because `q=q0` and the normalized resonance barrier factor equals one.
-
-For a subthreshold pole, `Gamma0` is treated as the user-supplied nominal width parameter while `q0` is the positive reference scale defined above. Because `m0^2` itself is outside the open two-body region, the identity `Gamma(m0^2)=Gamma0` is not imposed there.
+For a virtual pole, `q0` is defined at `m_ref`, while `m0` remains the nominal pole parameter in the RBW denominator and in the `m0/sqrt(s)` factor.
 
 ## Relativistic Breit-Wigner
 
-The implemented denominator convention is
+The only currently supported lineshape is
 
 ```text
-BW(s) = F_M F_R / [m0^2 - s - i m0 Gamma(s)].
+RBW(s) = F_M F_R / [m0^2 - s - i m0 Gamma(s)].
 ```
 
-For a pole inside the physical region, at `s=m0^2` with normalized barrier factors,
+For a physical pole at `s=m0^2`, where both normalized barrier factors equal one,
 
 ```text
-BW(m0^2) = i / (m0 Gamma0).
+RBW(m0^2) = i / (m0 Gamma0).
 ```
 
-A global sign or phase convention for a Breit-Wigner can be absorbed into the complex coefficient of that component; consistency across all components is what matters physically.
+A global sign convention can be absorbed in the complex coefficient, but the convention must remain consistent across all amplitudes.
 
 ## Zemach angular terms
 
-For spin-0 mother and spin-0 final-state particles, both vectors are evaluated in the resonance rest frame.
-
-`q` denotes the three-momentum of the first listed resonance daughter and `p` denotes the bachelor three-momentum.
-
-The implementation uses
+Both vectors are evaluated in the resonance rest frame. `q` is the momentum of the first listed resonance daughter and `p` is the bachelor momentum.
 
 ```text
 Z_0 = 1
@@ -190,73 +211,100 @@ Z_1 = -2 p.q
 Z_2 = (4/3) [3(p.q)^2 - |p|^2 |q|^2].
 ```
 
-Using
+With
 
 ```text
 p.q = |p||q| cos(theta),
 ```
 
-the angular dependence is proportional to the expected Legendre-polynomial structure:
+the angular dependence is proportional to
 
 ```text
-L=0: constant
+L=0: 1
 L=1: cos(theta)
-L=2: 3 cos^2(theta) - 1
+L=2: 3 cos^2(theta) - 1,
 ```
 
-up to momentum factors and overall normalisation constants.
+apart from momentum factors and overall constants.
 
-### Spin-1 sign convention
+Changing which resonance daughter defines `q` flips the sign of `Z_1` and is equivalent to a 180-degree phase convention change for that amplitude.
 
-Changing which resonance daughter is used to define `q` changes `q -> -q` in the resonance rest frame. Consequently,
+## Bose symmetry
+
+For identical final-state particles, all distinct physical bachelor assignments are summed coherently before component normalization.
+
+If the two particles forming a resonance are identical spin-0 bosons, odd orbital angular momentum is forbidden. The implementation explicitly rejects such a component:
 
 ```text
-Z_1 -> -Z_1,
+identical spin-0 pair -> L must be even.
 ```
 
-while `Z_0` and `Z_2` are unchanged.
+## Deterministic component normalization
 
-This sign is a convention and is equivalent to a 180-degree phase shift of the corresponding complex coefficient, provided it is handled consistently.
+Each complete symmetrized dynamic basis function is normalized using a fixed integration grid that is independent of the visualization grid and of toy-MC generation.
 
-## Complete resonant component
-
-For the current implementation, a resonant chain is therefore
+The current deterministic integration grid has resolution
 
 ```text
-A_r = c_r
-      F_M(p,p0,r_M)
-      F_R(q,q0,r_R)
-      Z_L(p,q)
-      / [m0^2 - s - i m0 Gamma(s)].
+260 x 260
 ```
 
-The full model is the coherent sum of all resonant and non-resonant components.
+before removal of points outside the physical Dalitz boundary.
 
-For identical final-state particles, the relevant decay-chain amplitudes are summed coherently before component normalisation.
-
-## Component normalisation
-
-Each complete symmetrized dynamic component is normalized numerically over three-body phase space:
+For a regular grid in `(s12,s13)`, three-body phase space is uniform in `ds12 ds13` up to a common channel-wide factor, so the component integral is evaluated as
 
 ```text
-N_r = integral |F_r|^2 dPhi_3.
+N_r ~= sum_i |F_r(s12_i,s13_i)|^2 Delta s12 Delta s13.
 ```
 
-The basis amplitude used in the coherent sum is
+The normalized basis is
 
 ```text
 Fhat_r = F_r / sqrt(N_r).
 ```
 
-The fitted/user-supplied complex coefficient is applied only after this normalization.
+The user's magnitude and phase are applied only after this normalization.
+
+The normalization cache key contains the quantities that change the dynamic basis (channel, pair, spin, mass, width, barrier radii, symmetrization) and deliberately excludes magnitude and phase. Therefore a change only in a complex coefficient does not recompute the basis normalization.
+
+Most importantly, `N_r` no longer depends on:
+
+- theoretical-plot display resolution;
+- toy event count;
+- toy random seed;
+- phase-space weights of a particular generated toy sample.
+
+The same cached normalization is reused by theoretical plots and toy generation.
+
+## Theoretical projections
+
+Because the Dalitz phase-space density is constant in `ds12 ds13` up to an overall factor, the theoretical projections numerically integrate the intensity over the complementary invariant. The grid spacings are explicitly included in these sums.
 
 ## Fit fractions
 
-Fit fractions are calculated as
+Fit fractions are evaluated on the same fixed deterministic integration grid,
 
 ```text
-FF_r = integral |A_r|^2 dPhi_3
-       / integral |sum_k A_k|^2 dPhi_3.
+FF_r = integral |A_r|^2 dPhi3
+       / integral |sum_k A_k|^2 dPhi3.
 ```
 
-Because interference appears in the denominator but not in the individual numerators, the sum of fit fractions is not required to equal 100%.
+They therefore do not depend on the display resolution or on a toy sample.
+
+Interference is present only in the total denominator, so
+
+```text
+sum_r FF_r
+```
+
+is not required to equal one.
+
+## Toy Monte Carlo
+
+`phasespace` is used to generate three-body phase-space points. The displayed toy is a weighted sample with
+
+```text
+w_total = w_phase_space |A|^2.
+```
+
+It is not an unweighted accept-reject sample. The toy weights are used to populate distributions, but they are no longer used to define the amplitude-component normalization.
