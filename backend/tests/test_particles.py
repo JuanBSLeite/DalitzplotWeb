@@ -2,7 +2,12 @@ from __future__ import annotations
 
 import pytest
 
-from app.services.particles import ParticleLookupError, resolve_decay, resolve_particle
+from app.services.particles import (
+    ParticleLookupError,
+    resolve_decay,
+    resolve_particle,
+    validate_spinless_dalitz_scope,
+)
 
 
 def test_resolve_pion_in_gev() -> None:
@@ -18,6 +23,13 @@ def test_resolve_three_body_decay() -> None:
 
     assert mother.mass_gev > sum(item.mass_gev for item in daughters)
     assert [item.pdgid for item in daughters] == [211, -211, 111]
+    validate_spinless_dalitz_scope(mother, daughters)
+
+
+def test_spinless_scope_rejects_nonzero_spin_final_state() -> None:
+    mother, daughters = resolve_decay("D0", ("K-", "mu+", "nu(mu)"))
+    with pytest.raises(ParticleLookupError, match="spin-0 final-state"):
+        validate_spinless_dalitz_scope(mother, daughters)
 
 
 def test_reject_unknown_particle() -> None:
